@@ -222,7 +222,7 @@ for url in unique_urls:
     except Exception as e: #add exemption for urls that get bad 401 error 
         print(f"Error processing url {url} {e}")
 
-out_path = "news_summmary.txt"
+out_path = "news_summary.txt"
 with open(out_path, "w", encoding="utf-8") as f:
     for s in summaries:
         f.write(s.replace("\n", " ") + "\n")
