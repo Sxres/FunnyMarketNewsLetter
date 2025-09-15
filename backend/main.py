@@ -1,6 +1,6 @@
 import os 
 import json 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 from google.cloud import storage
 from fastapi import FastAPI, HTTPException
@@ -30,21 +30,16 @@ async def get_news():
     tickers = load_tickers_from_bucket()
     results = {}
 
-    # calculate date 24 hours ago
-    yesterday = datetime.now() - timedelta(days=2)
-    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    # get news from yesterday to today, changed news api now we get latest news without paying 400 bucks
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
     for ticker in tickers:
-        url = f"https://newsapi.org/v2/everything?q={ticker}&from={yesterday_str}&to={datetime.now().strftime('%Y-%m-%d')}&Language=en&sortBy=publishedAt&apiKey={NEWSAPI_KEY}"
+        url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&RANGE={yesterday}&RANGE={today}&apikey={NEWSAPI_KEY}"
         response = requests.get(url)
-        news_data = response.json()
-
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="Error fetching news data")
-        if news_data.get("status") != "ok":
-            raise HTTPException(status_code=500, detail="Error in news data response")
-
-        filename = f"news/{ticker}_news_{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
-        client = storage.Client()
+        news_data = response.json() 
+        
+        filename = f"news/{ticker}_news_{datetime.now().strftime('%Y%m%d%H%M%S')}.json" 
+        client = storage.Client() 
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"{filename}")
         blob.upload_from_string(json.dumps(news_data), content_type="application/json")
