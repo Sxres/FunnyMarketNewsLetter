@@ -15,9 +15,5 @@ This project provides real-time stock market news summaries and commentary using
 
 ---
 
-## Tech Stack
-- **Languages & Libraries:** Python, Pandas, newspaper3k  
-- **Frameworks:** FastAPI, Ollama  
-- **Cloud Services:** Google Cloud Run, Cloud Scheduler, Cloud Storage  
-- **Databases:** Vector database (FAISS, Pinecone, or PGVector)  
+
 
