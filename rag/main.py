@@ -1,6 +1,9 @@
 import ollama
+
+# changes want to implement: langchain implementation, retrieving done before inference of model, make a frontend and make it so when model is asked it doesnt end after 1 question (can hold a conversation)
+# add faiss
 embedding_model = "hf.co/CompendiumLabs/bge-base-en-v1.5-gguf"
-language_model = "qwen3:latest" # qwen is goated going through 
+language_model = "gpt-oss:120b-cloud" # qwen is goated going through 
  
 vector_db = []
 news_data = []
@@ -61,7 +64,6 @@ else:
 
 input_query = input("Ask me anything about stocks! ")
 retrieved_knowledge = retrieve(input_query)
-
 context_text = '\n'.join([f' - {chunk}' for chunk, similarity in retrieved_knowledge])
 
 instruction_prompt_wsb = f"""
@@ -75,7 +77,7 @@ Rules:
    - No bullet points, no lists, no neat formatting.
    - Make it loud, funny, and really degenerate.
 5. Swear freely, roast companies, mock bagholders, and lean hard into WSB slang, memes and politics 
-   (diamond hands 💎🙌, paper hands, stonks 📈, YOLO, 🚀🌕, “send it,” “bagholder tears,” “tendies”).
+   (diamond hands , paper hands, stonks, YOLO, “send it,” “bagholder tears,” “tendies”).
 6. Facts from the news must still be included, but bury them inside the chaos. 
    Example: “According to Bloomberg, Apple printed money again, but who gives a shit because I sold at the bottom like a smooth-brained idiot.”
 7. If the news is boring, trash it like it wasted your time. 
