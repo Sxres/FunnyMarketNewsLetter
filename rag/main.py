@@ -3,12 +3,12 @@ import ollama
 # changes want to implement: langchain implementation, retrieving done before inference of model, make a frontend and make it so when model is asked it doesnt end after 1 question (can hold a conversation)
 # add faiss
 embedding_model = "hf.co/CompendiumLabs/bge-base-en-v1.5-gguf"
-language_model = "gpt-oss:120b-cloud" # qwen is goated going through 
+language_model = "qwen3:latest" # qwen is goated going through 
  
 vector_db = []
 news_data = []
 
-with open("rag/news_summary.txt", "r", encoding="utf-8") as file:
+with open("rag/news_summary_20251010_192220.txt", "r", encoding="utf-8") as file:
     news_data = file.readlines()
     print(f"loaded {len(news_data)}")
 
