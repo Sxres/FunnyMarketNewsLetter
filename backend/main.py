@@ -22,7 +22,7 @@ class newsprocessing:
         self.all_summaries = []  # Track all summaries
 
     def load_tickers(self):
-        return ["AAPL", "TSLA", "GOOG", "MSFT", "LUNR", "NVDA"]
+        return ["AAPL", "TSLA", "GOOG", "MSFT", "LUNR", "NVDA", "CMG", "BBAI", "INTC", "AMD",]
     
     def fetch_news(self, ticker, start_date, end_date):
         url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&RANGE={start_date}&RANGE={end_date}&apikey={self.news_api_key}"
@@ -32,7 +32,7 @@ class newsprocessing:
     async def fetch_and_process_news(self):
         tickers = self.load_tickers()
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%d")
         
         print(f" Starting news processing for {len(tickers)} tickers: {', '.join(tickers)}")
         print(f" Date range: {yesterday} to {today}")

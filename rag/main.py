@@ -3,7 +3,7 @@ import ollama
 # changes want to implement: langchain implementation, retrieving done before inference of model, make a frontend and make it so when model is asked it doesnt end after 1 question (can hold a conversation)
 # add faiss
 embedding_model = "hf.co/CompendiumLabs/bge-base-en-v1.5-gguf"
-language_model = "qwen3:latest" # qwen is goated going through 
+language_model = "qwen3:latest" # use new qwen cloud 
  
 vector_db = []
 news_data = []
