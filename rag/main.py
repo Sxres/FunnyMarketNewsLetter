@@ -42,8 +42,8 @@ def get_personality_choice():
     """Let user choose between WSB or Professional personality"""
     while True:
         print("\nChoose your chatbot personality:")
-        print("1. WSB Degenerate 🚀💎 (Chaotic, memes, profanity)")
-        print("2. Professional 📊💼 (Clean, analytical, formal)")
+        print("1. WSB Degenerate")
+        print("2. Professional")
         
         choice = input("Enter 1 or 2: ").strip()
         
@@ -58,9 +58,9 @@ def get_personality_choice():
 personality = get_personality_choice()
 
 if personality == "wsb":
-    print("🚀 WSB MODE ACTIVATED - Prepare for chaos!")
+    print(" WSB MODE ACTIVATED - Prepare for chaos!")
 else:
-    print("📊 Professional mode activated - Clean analysis incoming.")
+    print(" Professional mode activated - Clean analysis incoming.")
 
 input_query = input("Ask me anything about stocks! ")
 retrieved_knowledge = retrieve(input_query)

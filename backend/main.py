@@ -8,7 +8,7 @@ import asyncio
 from newspaper import Article
 import nltk
 
-# Download required NLTK data
+# download required NLTK data
 nltk.download('punkt_tab', quiet=True)
 
 load_dotenv()
@@ -19,7 +19,7 @@ class newsprocessing:
         self.news_api_key = os.getenv("NEWSAPI_KEY")
         self.vector_db = chromadb.Client()
         self.collection = self.vector_db.get_or_create_collection("market_news")
-        self.all_summaries = []  # Track all summaries
+        self.all_summaries = []  # track all summaries
 
     def load_tickers(self):
         return ["AAPL", "TSLA", "GOOG", "MSFT", "LUNR", "NVDA", "CMG", "BBAI", "INTC", "AMD",]
@@ -66,7 +66,7 @@ class newsprocessing:
             
             print(f" Stored article {i}/{len(articles)} for {ticker}")
         
-        print(f"🎉 Completed processing {len(articles)} articles for {ticker}")
+        print(f"Completed processing {len(articles)} articles for {ticker}")
         print("-" * 40)
 
     def extract_article_content(self, url):
@@ -94,11 +94,9 @@ class newsprocessing:
             return None
             
     def cleaning(self, article):
-        # Get the full article content using newspaper3k
         article_url = article.get("url", "")
         extracted_data = self.extract_article_content(article_url) if article_url else None
         
-        # Use extracted content or fallback to original summary
         content = extracted_data['content'] if extracted_data else article.get("summary", "")
         full_text = extracted_data['full_text'] if extracted_data else ""
         
