@@ -24,8 +24,7 @@
 		height: 100%;
 		background: #000;
 		color: #eaeaea;
-		font-family: 'Overused Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
-			sans-serif;
+		font-family: 'Overused Grotesk', 'Segoe UI', system-ui, sans-serif;
 		font-size: 14px;
 		-webkit-font-smoothing: antialiased;
 	}
