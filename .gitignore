@@ -3,3 +3,6 @@
 config.json
 .venv
 *.md
+__pycache__/
+*.pyc
+*.pyo
