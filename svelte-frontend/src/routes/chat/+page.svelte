@@ -17,6 +17,7 @@
 	let input = $state('');
 	let personality = $state<'professional' | 'wsb'>('professional');
 	let modeOpen = $state(false);
+	let accessToken = $state('');
 
 	let messagesEl: HTMLDivElement | null = $state(null);
 
@@ -123,9 +124,13 @@
 		});
 	}
 
+	function authHeaders(): Record<string, string> {
+		return { 'Authorization': `Bearer ${accessToken}` };
+	}
+
 	async function loadSessions() {
 		try {
-			const r = await fetch(`${API}/api/sessions`);
+			const r = await fetch(`${API}/api/sessions`, { headers: authHeaders() });
 			if (!r.ok) return;
 			const data = await r.json();
 			sessions = data.sessions ?? [];
@@ -137,7 +142,7 @@
 	async function loadHistory(id: string) {
 		loadingHistory = true;
 		try {
-			const r = await fetch(`${API}/api/history/${id}`);
+			const r = await fetch(`${API}/api/history/${id}`, { headers: authHeaders() });
 			if (!r.ok) {
 				messages = [];
 				return;
@@ -171,7 +176,7 @@
 	async function deleteSession(id: string, e: MouseEvent) {
 		e.stopPropagation();
 		try {
-			await fetch(`${API}/api/sessions/${id}`, { method: 'DELETE' });
+			await fetch(`${API}/api/sessions/${id}`, { method: 'DELETE', headers: authHeaders() });
 		} catch (err) {
 			console.error('deleteSession failed', err);
 		}
@@ -206,7 +211,7 @@
 		try {
 			const r = await fetch(`${API}/api/chat/stream`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...authHeaders() },
 				body: JSON.stringify({ message: text, session_id: sid, personality })
 			});
 
@@ -269,6 +274,7 @@
 			goto('/login');
 			return;
 		}
+		accessToken = session.access_token;
 		loadSessions();
 		newChat();
 	});

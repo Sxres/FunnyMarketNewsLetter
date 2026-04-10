@@ -87,7 +87,7 @@ When you get tool results, react to them raw.""",
 }
 
 
-async def run_agent(message: str, session_id: str, personality: str = "professional") -> dict:
+async def run_agent(message: str, session_id: str, personality: str = "professional", user_id: str = "") -> dict:
     """
     Run the agentic loop: send message → Claude calls tools → execute → Claude responds.
     Persists conversation history to Supabase and returns the final reply.
@@ -147,12 +147,12 @@ async def run_agent(message: str, session_id: str, personality: str = "professio
             break
 
     # Persist the final user + assistant exchange to Supabase
-    _save_messages(session_id, message, final_text)
+    _save_messages(session_id, message, final_text, user_id)
 
     return {"reply": final_text, "tool_calls": tool_calls_log}
 
 
-async def run_agent_stream(message: str, session_id: str, personality: str = "professional"):
+async def run_agent_stream(message: str, session_id: str, personality: str = "professional", user_id: str = ""):
     """
     Streaming version: yields SSE-formatted strings.
     Tool calls run non-streaming first, then final text streams token by token.
@@ -217,20 +217,21 @@ async def run_agent_stream(message: str, session_id: str, personality: str = "pr
                 await asyncio.sleep(0.01)
             break
 
-    _save_messages(session_id, message, final_text)
+    _save_messages(session_id, message, final_text, user_id)
     yield f"data: {json.dumps({'type': 'done', 'tool_calls': tool_calls_log})}\n\n"
 
 
-def list_sessions() -> list[dict]:
+def list_sessions(user_id: str = "") -> list[dict]:
     """Return all sessions with their first user message as a title."""
     try:
-        result = (
+        query = (
             _get_supabase().table("chat_messages")
             .select("session_id, content, created_at")
             .eq("role", "user")
-            .order("created_at")
-            .execute()
         )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        result = query.order("created_at").execute()
         seen = {}
         for row in (result.data or []):
             sid = row["session_id"]
@@ -248,22 +249,19 @@ def delete_session(session_id: str) -> None:
         pass
 
 
-def get_history(session_id: str) -> list[dict]:
+def get_history(session_id: str, user_id: str = "") -> list[dict]:
     """Return chat history for a session as a list of {role, content, created_at}."""
-    import time
-    t0 = time.time()
     try:
-        result = (
+        query = (
             _get_supabase().table("chat_messages")
             .select("role, content, created_at")
             .eq("session_id", session_id)
-            .order("created_at")
-            .execute()
         )
-        print(f"[get_history] {session_id} → {len(result.data or [])} rows in {time.time()-t0:.2f}s")
+        if user_id:
+            query = query.eq("user_id", user_id)
+        result = query.order("created_at").execute()
         return result.data or []
-    except Exception as e:
-        print(f"[get_history] FAILED in {time.time()-t0:.2f}s: {type(e).__name__}: {e}")
+    except Exception:
         return []
 
 
@@ -285,15 +283,18 @@ def _load_history(session_id: str) -> list[dict]:
         return []
 
 
-def _save_messages(session_id: str, user_msg: str, assistant_msg: str) -> None:
+def _save_messages(session_id: str, user_msg: str, assistant_msg: str, user_id: str = "") -> None:
     try:
         now = datetime.now(timezone.utc).isoformat()
+        base = {"session_id": session_id, "created_at": now}
+        if user_id:
+            base["user_id"] = user_id
         _get_supabase().table("chat_messages").insert([
-            {"session_id": session_id, "role": "user", "content": user_msg, "created_at": now},
-            {"session_id": session_id, "role": "assistant", "content": assistant_msg, "created_at": now},
+            {**base, "role": "user", "content": user_msg},
+            {**base, "role": "assistant", "content": assistant_msg},
         ]).execute()
     except Exception:
-        pass  # history persistence failure is non-fatal
+        pass
 
 
 def _extract_text(content: list) -> str:

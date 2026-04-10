@@ -1,8 +1,14 @@
 import os
-from fastapi import FastAPI, HTTPException
+import jwt
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from backend.agent import run_agent, run_agent_stream, get_history, list_sessions, delete_session
@@ -10,7 +16,11 @@ from backend.tools import get_price
 
 load_dotenv()
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="FunnyMarketNews API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, lambda req, exc: JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Slow down."}))
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +28,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+_bearer = HTTPBearer()
+_supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+_jwks_client = jwt.PyJWKClient(f"{_supabase_url}/auth/v1/.well-known/jwks.json")
+
+
+def get_user_id(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> str:
+    """Verify Supabase JWT and return the user's ID."""
+    try:
+        signing_key = _jwks_client.get_signing_key_from_jwt(creds.credentials)
+        payload = jwt.decode(
+            creds.credentials,
+            signing_key.key,
+            algorithms=["ES256"],
+            audience="authenticated",
+        )
+        user_id = payload.get("sub", "")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token: no sub claim")
+        return user_id
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
 
 
 # ── Request/Response models ────────────────────────────────────────────────────
@@ -36,33 +72,35 @@ class ChatResponse(BaseModel):
 # ── API routes ─────────────────────────────────────────────────────────────────
 
 @app.post("/api/chat/stream")
-async def chat_stream(req: ChatRequest):
+@limiter.limit("5/minute")
+async def chat_stream(request: Request, req: ChatRequest, user_id: str = Depends(get_user_id)):
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     if req.personality not in ("professional", "wsb"):
         raise HTTPException(status_code=400, detail="personality must be 'professional' or 'wsb'")
 
     return StreamingResponse(
-        run_agent_stream(req.message, req.session_id, req.personality),
+        run_agent_stream(req.message, req.session_id, req.personality, user_id),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
+@limiter.limit("5/minute")
+async def chat(request: Request, req: ChatRequest, user_id: str = Depends(get_user_id)):
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     if req.personality not in ("professional", "wsb"):
         raise HTTPException(status_code=400, detail="personality must be 'professional' or 'wsb'")
 
-    result = await run_agent(req.message, req.session_id, req.personality)
+    result = await run_agent(req.message, req.session_id, req.personality, user_id)
     return ChatResponse(**result)
 
 
 @app.get("/api/history/{session_id}")
-def history(session_id: str):
-    messages = get_history(session_id)
+def history(session_id: str, user_id: str = Depends(get_user_id)):
+    messages = get_history(session_id, user_id)
     return {"session_id": session_id, "messages": messages}
 
 
@@ -75,12 +113,12 @@ async def stock_price(ticker: str):
 
 
 @app.get("/api/sessions")
-def sessions():
-    return {"sessions": list_sessions()}
+def sessions(user_id: str = Depends(get_user_id)):
+    return {"sessions": list_sessions(user_id)}
 
 
 @app.delete("/api/sessions/{session_id}")
-def remove_session(session_id: str):
+def remove_session(session_id: str, user_id: str = Depends(get_user_id)):
     delete_session(session_id)
     return {"deleted": session_id}
 
