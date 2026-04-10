@@ -2,3 +2,4 @@
 .env.local
 config.json
 .venv
+*.md
