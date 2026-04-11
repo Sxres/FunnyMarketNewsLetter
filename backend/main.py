@@ -1,4 +1,6 @@
 import os
+import re
+import html
 import jwt
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +11,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
 from backend.agent import run_agent, run_agent_stream, get_history, list_sessions, delete_session
 from backend.tools import get_price
@@ -63,6 +65,31 @@ class ChatRequest(BaseModel):
     session_id: str
     personality: str = "professional"  # "professional" | "wsb"
 
+    @field_validator("message")
+    @classmethod
+    def sanitize_message(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Message cannot be empty")
+        if len(v) > 2000:
+            raise ValueError("Message too long (max 2000 chars)")
+        # Strip HTML/script tags — content is plain text, not markup
+        v = re.sub(r"<\s*/?[^>]+>", "", v)
+        # Escape any remaining HTML entities
+        v = html.escape(v)
+        return v
+
+    @field_validator("session_id")
+    @classmethod
+    def sanitize_session_id(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("session_id cannot be empty")
+        # session_id should only be a UUID — reject anything else
+        if not re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", v):
+            raise ValueError("Invalid session_id format")
+        return v
+
 
 class ChatResponse(BaseModel):
     reply: str
@@ -100,13 +127,18 @@ async def chat(request: Request, req: ChatRequest, user_id: str = Depends(get_us
 
 @app.get("/api/history/{session_id}")
 def history(session_id: str, user_id: str = Depends(get_user_id)):
+    if not re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", session_id):
+        raise HTTPException(status_code=400, detail="Invalid session_id format")
     messages = get_history(session_id, user_id)
     return {"session_id": session_id, "messages": messages}
 
 
 @app.get("/api/stocks/price/{ticker}")
 async def stock_price(ticker: str):
-    result = get_price(ticker.upper())
+    ticker = ticker.strip().upper()
+    if not re.match(r"^[A-Z]{1,5}$", ticker):
+        raise HTTPException(status_code=400, detail="Invalid ticker format")
+    result = get_price(ticker)
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     return result
@@ -119,6 +151,8 @@ def sessions(user_id: str = Depends(get_user_id)):
 
 @app.delete("/api/sessions/{session_id}")
 def remove_session(session_id: str, user_id: str = Depends(get_user_id)):
+    if not re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", session_id):
+        raise HTTPException(status_code=400, detail="Invalid session_id format")
     delete_session(session_id)
     return {"deleted": session_id}
 

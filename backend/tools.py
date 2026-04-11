@@ -1,9 +1,9 @@
 import os
 import json
+import time
 import finnhub
 import yfinance as yf
-from tavily import TavilyClient
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 import warnings
 
@@ -17,7 +17,6 @@ load_dotenv()
 
 _supabase: Client | None = None
 _finnhub = None
-_tavily = None
 
 def _get_supabase() -> Client:
     global _supabase
@@ -31,37 +30,16 @@ def _get_finnhub():
         _finnhub = finnhub.Client(api_key=os.getenv("FINNHUB_API_KEY"))
     return _finnhub
 
-def _get_tavily():
-    global _tavily
-    if _tavily is None:
-        _tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-    return _tavily
-
 NEWS_CACHE_TTL_MINUTES = 60
+YF_MAX_RETRIES = 3
+YF_BACKOFF_SECONDS = 0.6
+
+
 
 
 # ── Claude tool definitions ────────────────────────────────────────────────────
 
 TOOL_DEFINITIONS = [
-    {
-        "name": "search_web",
-        "description": (
-            "Search the web for any financial information, stock prices, market news, or research. "
-            "Use this when other tools fail, when you need current price data for obscure or small-cap tickers, "
-            "when the user asks a general market question not tied to a specific ticker, "
-            "or when you need to look up anything not covered by the other tools."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query, e.g. 'CIFR stock price today' or 'Fed interest rate decision 2025'",
-                }
-            },
-            "required": ["query"],
-        },
-    },
     {
         "name": "get_financials",
         "description": (
@@ -86,24 +64,6 @@ TOOL_DEFINITIONS = [
             "Get recent insider buying and selling activity for a stock. "
             "Use this when the user asks about insider activity, whether executives are buying or selling, "
             "or wants signals from people inside the company."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "ticker": {
-                    "type": "string",
-                    "description": "Stock ticker symbol, e.g. AAPL, TSLA, NVDA",
-                }
-            },
-            "required": ["ticker"],
-        },
-    },
-    {
-        "name": "get_analyst_ratings",
-        "description": (
-            "Get analyst consensus ratings, price targets, and recent upgrades/downgrades for a stock. "
-            "Use this when the user asks what analysts think, about price targets, buy/sell ratings, "
-            "or Wall Street sentiment."
         ),
         "input_schema": {
             "type": "object",
@@ -163,37 +123,73 @@ TOOL_DEFINITIONS = [
 
 def get_price(ticker: str) -> dict:
     ticker = ticker.upper().strip()
+    last_yf_error = ""
+
+    for attempt in range(YF_MAX_RETRIES):
+        try:
+            t = yf.Ticker(ticker)
+            hist = t.history(period="5d", interval="1d")
+
+            if not hist.empty:
+                hist = hist[["Close", "Volume"]].dropna()
+                if not hist.empty:
+                    current = float(hist["Close"].iloc[-1])
+                    prev = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current
+                    change = current - prev
+                    change_pct = (change / prev) * 100 if prev else 0
+
+                    info = t.fast_info
+
+                    return {
+                        "ticker": ticker,
+                        "price": round(current, 2),
+                        "change": round(change, 2),
+                        "change_pct": round(change_pct, 2),
+                        "volume": int(hist["Volume"].iloc[-1]),
+                        "market_cap": getattr(info, "market_cap", None),
+                        "fifty_two_week_high": getattr(info, "year_high", None),
+                        "fifty_two_week_low": getattr(info, "year_low", None),
+                        "as_of": hist.index[-1].strftime("%Y-%m-%d"),
+                        "source": "yfinance",
+                    }
+
+            last_yf_error = "No price data returned from Yahoo"
+        except Exception as e:
+            last_yf_error = str(e)
+
+        if attempt < YF_MAX_RETRIES - 1:
+            time.sleep(YF_BACKOFF_SECONDS * (2 ** attempt))
+
+    # Fallback: Finnhub quote endpoint is more stable under Yahoo throttling.
     try:
-        t = yf.Ticker(ticker)
-        hist = t.history(period="5d", interval="1d")
+        quote = _get_finnhub().quote(ticker)
+        current = float(quote.get("c") or 0)
+        if current <= 0:
+            return {"error": f"No price data found for {ticker} (Yahoo + Finnhub unavailable)"}
 
-        if hist.empty:
-            return {"error": f"No price data found for {ticker}"}
-
-        hist = hist[["Close", "Volume"]].dropna()
-        if hist.empty:
-            return {"error": f"No valid price data for {ticker}"}
-
-        current = float(hist["Close"].iloc[-1])
-        prev = float(hist["Close"].iloc[-2]) if len(hist) > 1 else current
-        change = current - prev
-        change_pct = (change / prev) * 100 if prev else 0
-
-        info = t.fast_info
+        prev_close = float(quote.get("pc") or current)
+        change = float(quote.get("d") or (current - prev_close))
+        change_pct = float(quote.get("dp") or ((change / prev_close) * 100 if prev_close else 0))
+        high = quote.get("h")
+        low = quote.get("l")
+        ts = quote.get("t")
 
         return {
             "ticker": ticker,
             "price": round(current, 2),
             "change": round(change, 2),
             "change_pct": round(change_pct, 2),
-            "volume": int(hist["Volume"].iloc[-1]),
-            "market_cap": getattr(info, "market_cap", None),
-            "fifty_two_week_high": getattr(info, "year_high", None),
-            "fifty_two_week_low": getattr(info, "year_low", None),
-            "as_of": hist.index[-1].strftime("%Y-%m-%d"),
+            "volume": None,
+            "market_cap": None,
+            "fifty_two_week_high": round(float(high), 2) if isinstance(high, (int, float)) and high > 0 else None,
+            "fifty_two_week_low": round(float(low), 2) if isinstance(low, (int, float)) and low > 0 else None,
+            "as_of": datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d") if ts else datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "source": "finnhub",
+            "note": "Yahoo data temporarily unavailable; used Finnhub fallback",
         }
     except Exception as e:
-        return {"error": f"Failed to fetch price for {ticker}: {str(e)}"}
+        details = last_yf_error or "unknown Yahoo failure"
+        return {"error": f"Failed to fetch price for {ticker}: Yahoo error ({details}); Finnhub error ({str(e)})"}
 
 
 def get_news(ticker: str, limit: int = 10) -> dict:
@@ -208,7 +204,6 @@ def get_news(ticker: str, limit: int = 10) -> dict:
 
     # Fetch from Finnhub
     try:
-        from datetime import timedelta
         now = datetime.now(timezone.utc)
         from_date = (now - timedelta(days=7)).strftime("%Y-%m-%d")
         to_date = now.strftime("%Y-%m-%d")
@@ -237,97 +232,87 @@ def get_news(ticker: str, limit: int = 10) -> dict:
         return {"error": f"Failed to fetch news for {ticker}: {str(e)}"}
 
 
-def search_web(query: str) -> dict:
-    try:
-        response = _get_tavily().search(
-            query=query,
-            search_depth="basic",
-            max_results=5,
-            include_answer=True,
-        )
-        return {
-            "answer": response.get("answer", ""),
-            "results": [
-                {
-                    "title": r.get("title", ""),
-                    "url": r.get("url", ""),
-                    "content": r.get("content", ""),
-                    "published_date": r.get("published_date", ""),
-                }
-                for r in response.get("results", [])
-            ],
-        }
-    except Exception as e:
-        return {"error": f"Search failed: {str(e)}"}
-
-
 def get_financials(ticker: str) -> dict:
     ticker = ticker.upper().strip()
     try:
-        info = yf.Ticker(ticker).info
-        if not info or info.get("trailingPE") is None and info.get("marketCap") is None:
-            return {"error": f"No financial data found for {ticker}"}
+        fh = _get_finnhub()
+        profile = fh.company_profile2(symbol=ticker)
+        basics = fh.company_basic_financials(ticker, 'all')
+        metric = basics.get("metric", {}) if basics else {}
+
+        if not metric and not profile:
+            return {"ticker": ticker, "error": f"No financial data available for {ticker}"}
 
         def fmt(v):
             if v is None: return None
-            if isinstance(v, float): return round(v, 4)
+            if isinstance(v, (int, float)): return round(float(v), 4)
             return v
 
         return {
             "ticker": ticker,
-            "company_name": info.get("longName"),
-            "sector": info.get("sector"),
-            "industry": info.get("industry"),
-            "market_cap": info.get("marketCap"),
-            "pe_ratio_trailing": fmt(info.get("trailingPE")),
-            "pe_ratio_forward": fmt(info.get("forwardPE")),
-            "peg_ratio": fmt(info.get("pegRatio")),
-            "price_to_book": fmt(info.get("priceToBook")),
-            "price_to_sales": fmt(info.get("priceToSalesTrailing12Months")),
-            "revenue_ttm": info.get("totalRevenue"),
-            "gross_margin": fmt(info.get("grossMargins")),
-            "operating_margin": fmt(info.get("operatingMargins")),
-            "profit_margin": fmt(info.get("profitMargins")),
-            "eps_trailing": fmt(info.get("trailingEps")),
-            "eps_forward": fmt(info.get("forwardEps")),
-            "revenue_growth_yoy": fmt(info.get("revenueGrowth")),
-            "earnings_growth_yoy": fmt(info.get("earningsGrowth")),
-            "total_debt": info.get("totalDebt"),
-            "total_cash": info.get("totalCash"),
-            "debt_to_equity": fmt(info.get("debtToEquity")),
-            "return_on_equity": fmt(info.get("returnOnEquity")),
-            "return_on_assets": fmt(info.get("returnOnAssets")),
-            "dividend_yield": fmt(info.get("dividendYield")),
-            "beta": fmt(info.get("beta")),
-            "short_float_pct": fmt(info.get("shortPercentOfFloat")),
+            "company_name": profile.get("name"),
+            "sector": profile.get("finnhubIndustry"),
+            "industry": profile.get("finnhubIndustry"),
+            "market_cap": round(profile["marketCapitalization"] * 1_000_000) if profile.get("marketCapitalization") else None,
+            "pe_ratio_trailing": fmt(metric.get("peBasicExclExtraTTM")),
+            "pe_ratio_forward": fmt(metric.get("peExclExtraForward")),
+            "peg_ratio": fmt(metric.get("pegRatioTTM")),
+            "price_to_book": fmt(metric.get("pbQuarterly")),
+            "price_to_sales": fmt(metric.get("psTTM")),
+            "revenue_ttm": metric.get("revenueTTM"),
+            "gross_margin": fmt(metric.get("grossMarginTTM")),
+            "operating_margin": fmt(metric.get("operatingMarginTTM")),
+            "profit_margin": fmt(metric.get("netProfitMarginTTM")),
+            "eps_trailing": fmt(metric.get("epsBasicExclExtraItemsTTM")),
+            "eps_forward": fmt(metric.get("epsForward")),
+            "revenue_growth_yoy": fmt(metric.get("revenueGrowthQuarterlyYoy")),
+            "earnings_growth_yoy": fmt(metric.get("epsGrowthQuarterlyYoy")),
+            "total_debt": metric.get("totalDebtTTM"),
+            "total_cash": metric.get("cashAndShortTermInvestments"),
+            "debt_to_equity": fmt(metric.get("totalDebt/totalEquityQuarterly")),
+            "return_on_equity": fmt(metric.get("roeTTM")),
+            "return_on_assets": fmt(metric.get("roaTTM")),
+            "dividend_yield": fmt(metric.get("dividendYieldIndicatedAnnual")),
+            "beta": fmt(metric.get("beta")),
+            "short_float_pct": fmt(metric.get("shortInterestPercentOfFloat")),
         }
     except Exception as e:
-        return {"error": f"Failed to fetch financials for {ticker}: {str(e)}"}
+        return {"ticker": ticker, "error": f"Financial data unavailable for {ticker}"}
 
 
 def get_insider_trades(ticker: str) -> dict:
     ticker = ticker.upper().strip()
     try:
-        t = yf.Ticker(ticker)
-        trades = t.insider_transactions
+        fh = _get_finnhub()
+        now = datetime.now(timezone.utc)
+        from_date = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+        to_date = now.strftime("%Y-%m-%d")
 
-        if trades is None or trades.empty:
-            return {"ticker": ticker, "trades": [], "note": "No recent insider transactions found"}
+        data = fh.stock_insider_transactions(ticker, from_date, to_date)
+        raw = data.get("data", []) if data else []
 
-        recent = trades.head(15)
+        if not raw:
+            return {"ticker": ticker, "trades": [], "summary": {"buys": 0, "sells": 0, "total": 0}, "note": "No recent insider transactions found"}
+
+        # transactionCode: P=Purchase, S=Sale, A=Grant/Award, M=Exercise, G=Gift, etc.
+        _CODE_LABELS = {"P": "Purchase", "S": "Sale", "A": "Award", "M": "Exercise", "G": "Gift", "F": "Tax Withhold"}
+
         result = []
-        for _, row in recent.iterrows():
+        for t in raw[:15]:
+            code = t.get("transactionCode", "") or ""
+            label = _CODE_LABELS.get(code, t.get("transactionType") or code or "Unknown")
+            shares = abs(t.get("change", 0)) if t.get("change") else t.get("share")
             result.append({
-                "insider": str(row.get("Insider", "")),
-                "title": str(row.get("Position", "")),
-                "transaction": str(row.get("Transaction", "")),
-                "shares": int(row["Shares"]) if row.get("Shares") is not None else None,
-                "value": int(row["Value"]) if row.get("Value") is not None else None,
-                "date": str(row.get("Start Date", "")),
+                "insider": t.get("name", ""),
+                "title": "",
+                "transaction": label,
+                "shares": shares,
+                "value": round(abs(t.get("change", 0)) * t.get("transactionPrice", 0)) if t.get("change") and t.get("transactionPrice") else None,
+                "date": t.get("transactionDate", ""),
             })
 
-        buys = sum(1 for r in result if "buy" in r["transaction"].lower() or "purchase" in r["transaction"].lower())
-        sells = sum(1 for r in result if "sell" in r["transaction"].lower() or "sale" in r["transaction"].lower())
+        buys = sum(1 for r in result if r["transaction"] in ("Purchase",))
+        sells = sum(1 for r in result if r["transaction"] in ("Sale",))
 
         return {
             "ticker": ticker,
@@ -335,45 +320,7 @@ def get_insider_trades(ticker: str) -> dict:
             "summary": {"buys": buys, "sells": sells, "total": len(result)},
         }
     except Exception as e:
-        return {"error": f"Failed to fetch insider trades for {ticker}: {str(e)}"}
-
-
-def get_analyst_ratings(ticker: str) -> dict:
-    ticker = ticker.upper().strip()
-    try:
-        t = yf.Ticker(ticker)
-        info = t.info
-
-        # Consensus summary from info
-        consensus = {
-            "ticker": ticker,
-            "recommendation": info.get("recommendationKey"),        # "buy", "hold", "sell"
-            "recommendation_mean": info.get("recommendationMean"),  # 1=Strong Buy, 5=Sell
-            "number_of_analysts": info.get("numberOfAnalystOpinions"),
-            "target_price_mean": info.get("targetMeanPrice"),
-            "target_price_high": info.get("targetHighPrice"),
-            "target_price_low": info.get("targetLowPrice"),
-            "current_price": info.get("currentPrice"),
-        }
-
-        # Recent upgrades/downgrades
-        upgrades_df = t.upgrades_downgrades
-        recent_actions = []
-        if upgrades_df is not None and not upgrades_df.empty:
-            upgrades_df = upgrades_df.sort_index(ascending=False).head(10)
-            for date, row in upgrades_df.iterrows():
-                recent_actions.append({
-                    "date": str(date)[:10],
-                    "firm": str(row.get("Firm", "")),
-                    "action": str(row.get("Action", "")),
-                    "from_grade": str(row.get("FromGrade", "")),
-                    "to_grade": str(row.get("ToGrade", "")),
-                })
-
-        consensus["recent_actions"] = recent_actions
-        return consensus
-    except Exception as e:
-        return {"error": f"Failed to fetch analyst ratings for {ticker}: {str(e)}"}
+        return {"ticker": ticker, "error": f"Insider trade data unavailable for {ticker}"}
 
 
 # ── Cache helpers ──────────────────────────────────────────────────────────────
@@ -428,10 +375,6 @@ def execute_tool(name: str, inputs: dict) -> str:
         result = get_financials(inputs["ticker"])
     elif name == "get_insider_trades":
         result = get_insider_trades(inputs["ticker"])
-    elif name == "get_analyst_ratings":
-        result = get_analyst_ratings(inputs["ticker"])
-    elif name == "search_web":
-        result = search_web(inputs["query"])
     else:
         result = {"error": f"Unknown tool: {name}"}
 
