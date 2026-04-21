@@ -404,7 +404,10 @@
 				<div class="welcome"><p>Loading...</p></div>
 			{:else if messages.length === 0}
 				<div class="welcome">
-					<h1>Market Chat</h1>
+					<pre class="pixel-face" aria-label="smiley pixel face">
+     |  |     
+ \____/ 
+</pre>
 					<p>Ask about any stock - price, news, sentiment.</p>
 				</div>
 			{:else}
@@ -488,6 +491,14 @@
 </div>
 
 <style>
+	@font-face {
+		font-family: 'Terminal-1';
+		src: url('/fonts/terminal-1-sans.otf.woff2') format('woff2');
+		font-weight: 400;
+		font-style: normal;
+		font-display: swap;
+	}
+
 	.app {
 		display: flex;
 		height: 100vh;
@@ -518,11 +529,15 @@
 		animation: fadeSlide 0.4s ease both;
 		animation-delay: 0.05s;
 	}
-	.welcome h1 {
-		font-size: 28px;
-		font-weight: 500;
-		color: #eaeaea;
-		margin: 0 0 8px;
+	.pixel-face {
+		margin: 0 0 12px;
+		color: #f2f2f2;
+		font-family: 'Terminal-1', 'SF Mono', Menlo, Consolas, monospace;
+		font-size: clamp(14px, 2.2vw, 20px);
+		line-height: 1.05;
+		letter-spacing: 0.02em;
+		white-space: pre;
+		text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
 	}
 	.welcome p {
 		margin: 0;

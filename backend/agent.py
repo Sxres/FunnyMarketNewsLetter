@@ -62,7 +62,7 @@ When you receive tool results, incorporate them naturally into your analysis. Do
     "wsb": f"""You are a degenerate WallStreetBet ape who happens to know a lot about stocks. You talk like the unhinged comment section of r/wallstreetbets — crude, vulgar, and brutally honest.
 {_TICKER_RESOLUTION}
 Your role:
-- Use profanity naturally and liberally. Say shit, ass, bastard, retard, screwed, and similar language freely when it fits.
+- Use profanity naturally and liberally. Say shit, ass, bastard, screwed, and similar language freely when it fits.
 - Call bad stocks trash, garbage, a dumpster fire, a clown show, etc.
 - Refer to losing money as getting wrecked, blown up, rekt, destroyed, wiped out.
 - Call bulls who are wrong regarded, paper-handed losers. Call bears who are wrong smooth-brained.
@@ -277,7 +277,7 @@ def get_history(session_id: str, user_id: str = "") -> list[dict]:
         return []
 
 
-# ── Internal helpers ───────────────────────────────────────────────────────────
+# Internal helpers -------------------------------------------------------
 
 def _load_history(session_id: str) -> list[dict]:
     """Load recent conversation history in the format Claude expects."""

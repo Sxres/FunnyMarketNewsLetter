@@ -8,6 +8,133 @@
 	let tickerOffset = $state(0);
 	let tickerFrame: number;
 
+	// ── ASCII moon ────────────────────────────────────────
+	let moonCanvas: HTMLCanvasElement | null = null;
+	let moonRotation = 0;
+	let moonAnimId: number | null = null;
+	let lastMoonFrame = 0;
+	const MOON_FRAME_MS = 1000 / 17;
+	const craters: Array<{ x: number; y: number; z: number; r: number; depth: number }> = [];
+
+	function initCraters() {
+		craters.length = 0;
+		for (let i = 0; i < 60; i++) {
+			const theta = Math.random() * Math.PI * 2;
+			const phi = Math.acos(2 * Math.random() - 1);
+			craters.push({
+				x: Math.sin(phi) * Math.cos(theta),
+				y: Math.sin(phi) * Math.sin(theta),
+				z: Math.cos(phi),
+				r: Math.random() * 0.18 + 0.05,
+				depth: Math.random() * 0.12 + 0.04
+			});
+		}
+	}
+
+	function renderMoon() {
+		const canvas = moonCanvas;
+		if (!canvas) return;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+		const dpr = window.devicePixelRatio || 1;
+		const rect = canvas.getBoundingClientRect();
+		if (rect.width === 0 || rect.height === 0) return;
+
+		canvas.width = rect.width * dpr;
+		canvas.height = rect.height * dpr;
+		ctx.scale(dpr, dpr);
+		ctx.imageSmoothingEnabled = false;
+
+		const w = rect.width;
+		const h = rect.height;
+
+		ctx.fillStyle = '#000';
+		ctx.fillRect(0, 0, w, h);
+
+		const cx = w / 2;
+		const cy = h / 2;
+		const radius = Math.min(w, h) * 0.48;
+
+		const ramp = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+
+		const fontSize = Math.max(7, Math.min(w, h) / 90);
+		ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
+		const metrics = ctx.measureText('@');
+		const charW = metrics.width;
+		const charH = fontSize * 1.15;
+
+		const rot = moonRotation;
+		const cosR = Math.cos(rot);
+		const sinR = Math.sin(rot);
+
+		const lx = 0.55;
+		const ly = -0.25;
+		const lz = 0.795;
+
+		ctx.textBaseline = 'top';
+		ctx.textAlign = 'left';
+
+		for (let row = 0; row * charH < h; row++) {
+			const y = row * charH;
+			const dy = y - cy;
+
+			for (let col = 0; col * charW < w; col++) {
+				const x = col * charW;
+				const dx = x - cx;
+				const dist2d = Math.sqrt(dx * dx + dy * dy);
+
+				if (dist2d >= radius) continue;
+
+				const z0 = Math.sqrt(Math.max(0, radius * radius - dist2d * dist2d));
+
+				const x_unrot = (dx * cosR - z0 * sinR) / radius;
+				const y_unrot = dy / radius;
+				const z_unrot = (dx * sinR + z0 * cosR) / radius;
+
+				const nx = dx / radius;
+				const ny = dy / radius;
+				const nz = z0 / radius;
+
+				let brightness = nx * lx + ny * ly + nz * lz;
+
+				for (const c of craters) {
+					const cdx = x_unrot - c.x;
+					const cdy = y_unrot - c.y;
+					const cdz = z_unrot - c.z;
+					const cd = Math.sqrt(cdx * cdx + cdy * cdy + cdz * cdz);
+					if (cd < c.r) {
+						const craterShade = 1 - cd / c.r;
+						brightness -= c.depth * craterShade * (1.2 + craterShade * 1.2);
+					}
+				}
+
+				brightness += (Math.random() - 0.5) * 0.015;
+				const ambient = 0.06;
+				const lit = Math.max(0, Math.min(1, brightness + ambient));
+
+				if (lit > 0.02) {
+					const rampIdx = Math.floor(lit * (ramp.length - 1));
+					const char = ramp[rampIdx];
+
+					const alpha = Math.min(1, lit * 1.4 + 0.15);
+					const gray = Math.floor(100 + lit * 155);
+
+					ctx.fillStyle = `rgba(${gray}, ${gray}, ${gray}, ${alpha})`;
+					ctx.fillText(char, x, y);
+				}
+			}
+		}
+	}
+
+	function animateMoon(now: number = 0) {
+		moonAnimId = requestAnimationFrame(animateMoon);
+		const delta = now - lastMoonFrame;
+		if (delta < MOON_FRAME_MS) return;
+		lastMoonFrame = now - (delta % MOON_FRAME_MS);
+		moonRotation += 0.010;
+		renderMoon();
+	}
+
 	const tickerItems = [
 		'AAPL +2.4%', 'NVDA +5.1%', 'TSLA -1.8%', 'MSFT +0.9%', 'AMZN +3.2%',
 		'GME +42.0%', 'META +1.1%', 'GOOG -0.3%', 'SPY +0.7%', 'AMD +4.6%',
@@ -135,16 +262,25 @@
 
 		requestAnimationFrame(() => { loaded = true; });
 		animateTicker();
+
+		initCraters();
+		document.fonts.ready.then(() => {
+			animateMoon();
+		});
 	});
 
 	onDestroy(() => {
 		if (tickerFrame) cancelAnimationFrame(tickerFrame);
+		if (moonAnimId) cancelAnimationFrame(moonAnimId);
 	});
 </script>
 
 <svelte:head>
 	<link rel="preload" href="/fonts/OverusedGrotesk-Book.otf" as="font" type="font/otf" crossorigin="anonymous" />
 	<link rel="preload" href="/fonts/OverusedGrotesk-Medium.otf" as="font" type="font/otf" crossorigin="anonymous" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 </svelte:head>
 
 <div class="page" class:wsb={mode === 'wsb'} class:loaded>
@@ -170,27 +306,7 @@
 					<span class="t2">CHAT</span>
 				</h1>
 
-				<p class="subtitle">
-					{#if mode === 'professional'}
-						Real-time market intelligence powered by agentic AI.
-						Price action, fundamentals, insider activity, and analyst consensus with cited sources you can trust.
-					{:else}
-						THE ONLY TERMINAL THAT SPEAKS FLUENT REGARD.
-						TENDIES OR ROPE. NO IN BETWEEN.
-					{/if}
-				</p>
-
-				<div class="actions">
-					<a href="/signup" class="btn-main">
-						{mode === 'professional' ? 'Get Started' : 'APE IN'}
-						<span class="btn-arrow">→</span>
-					</a>
-					<a href="/login" class="btn-ghost">Sign In</a>
-				</div>
-			</div>
-
-			<div class="hero-right">
-				<!-- Mode toggle card -->
+				<!-- Mode toggle card (below header) -->
 				<div class="mode-card">
 					<div class="mode-card-label">PERSONALITY</div>
 					<div class="mode-toggle" role="radiogroup" aria-label="Analysis mode">
@@ -218,9 +334,7 @@
 
 					<!-- Preview bubble -->
 					<div class="preview">
-						<div class="preview-label">
-							{mode === 'professional' ? 'sample output' : 'sample output'}
-						</div>
+						<div class="preview-label">sample output</div>
 						<p class="preview-text">
 							{#if mode === 'professional'}
 								NVDA trades at 38.2x forward P/E with 94% gross margins on datacenter. Consensus PT $152 implies 18% upside. Insider selling remains minimal.
@@ -230,6 +344,28 @@
 						</p>
 					</div>
 				</div>
+
+				<p class="subtitle">
+					{#if mode === 'professional'}
+						Real-time market intelligence powered by agentic AI.
+						Price action, fundamentals, insider activity, and analyst consensus with cited sources you can trust.
+					{:else}
+						THE ONLY TERMINAL THAT SPEAKS FLUENT REGARD.
+						TENDIES OR ROPE. NO IN BETWEEN.
+					{/if}
+				</p>
+
+				<div class="actions">
+					<a href="/signup" class="btn-main">
+						{mode === 'professional' ? 'Get Started' : 'APE IN'}
+						<span class="btn-arrow">→</span>
+					</a>
+					<a href="/login" class="btn-ghost">Sign In</a>
+				</div>
+			</div>
+
+			<div class="hero-right">
+				<canvas class="moon-canvas" bind:this={moonCanvas} aria-hidden="true"></canvas>
 			</div>
 		</div>
 	</section>
@@ -462,9 +598,9 @@
 	.ticker-item.up { color: #22c55e; }
 	.ticker-item.down { color: #ef4444; }
 
-	.wsb .ticker { border-bottom-color: #0a2a0a; background: #010a01; }
-	.wsb .ticker-item { color: #336633; }
-	.wsb .ticker-item.up { color: #00ff41; }
+	.wsb .ticker { border-bottom-color: #1a1a1a; background: #050505; }
+	.wsb .ticker-item { color: #555; }
+	.wsb .ticker-item.up { color: #22c55e; }
 	.wsb .ticker-item.down { color: #ff3333; }
 
 	/* ── Hero ─────────────────────────────────────────────── */
@@ -487,6 +623,7 @@
 	.hero-left {
 		flex: 1;
 		min-width: 0;
+		margin-top: -150px;
 		opacity: 0;
 		transform: translateY(24px);
 		transition: opacity 0.7s ease 0.15s, transform 0.7s ease 0.15s;
@@ -497,7 +634,13 @@
 	}
 
 	.hero-right {
-		flex: 0 0 420px;
+		flex: 1.5;
+		min-width: 0;
+		align-self: stretch;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		margin-right: -10%;
 		opacity: 0;
 		transform: translateY(24px);
 		transition: opacity 0.7s ease 0.35s, transform 0.7s ease 0.35s;
@@ -505,6 +648,14 @@
 	.loaded .hero-right {
 		opacity: 1;
 		transform: translateY(0);
+	}
+
+	.moon-canvas {
+		display: block;
+		width: 120%;
+		height: clamp(560px, 100vh, 1080px);
+		image-rendering: pixelated;
+		transform: translate(6%, -5%);
 	}
 	.title {
 		font-size: clamp(4.5rem, 9vw, 8rem);
@@ -519,12 +670,12 @@
 	}
 	.t2 {
 		display: block;
-		color: #d4af37;
+		color: #f5f5f5;
 		transition: color 0.4s ease, text-shadow 0.4s ease, transform 0.4s ease;
 	}
 	.wsb .t2 {
-		color: #00ff41;
-		text-shadow: 0 0 40px rgba(0, 255, 65, 0.4);
+		color: #ffffff;
+		text-shadow: 0 0 40px rgba(255, 255, 255, 0.4);
 		transform: skewX(-3deg);
 	}
 
@@ -537,7 +688,7 @@
 		transition: color 0.3s ease;
 	}
 	.wsb .subtitle {
-		color: #558855;
+		color: #888;
 		font-weight: 500;
 		letter-spacing: 0.02em;
 	}
@@ -575,13 +726,13 @@
 	.btn-main:hover .btn-arrow { transform: translateX(3px); }
 
 	.wsb .btn-main {
-		background: #00ff41;
+		background: #ffffff;
 		color: #000;
 		font-weight: 500;
 	}
 	.wsb .btn-main:hover {
-		background: #33ff66;
-		box-shadow: 0 4px 30px rgba(0, 255, 65, 0.25);
+		background: #e5e5e5;
+		box-shadow: 0 4px 30px rgba(255, 255, 255, 0.25);
 	}
 
 	.btn-ghost {
@@ -609,17 +760,19 @@
 		border: 1px solid #1a1a1a;
 		border-radius: 10px;
 		padding: 24px;
+		max-width: 420px;
+		margin: 0 0 36px;
 		transition: border-color 0.3s ease, box-shadow 0.3s ease;
 	}
 	.mode-card:hover {
 		border-color: #2a2a2a;
 	}
 	.wsb .mode-card {
-		border-color: #0a2a0a;
-		box-shadow: 0 0 60px rgba(0, 255, 65, 0.03);
+		border-color: #1a1a1a;
+		box-shadow: 0 0 60px rgba(255, 255, 255, 0.03);
 	}
 	.wsb .mode-card:hover {
-		border-color: #1a3a1a;
+		border-color: #2a2a2a;
 	}
 
 	.mode-card-label {
@@ -655,8 +808,8 @@
 		border-color: #eaeaea;
 	}
 	.wsb .mode-opt.active {
-		background: #00ff41;
-		border-color: #00ff41;
+		background: #ffffff;
+		border-color: #ffffff;
 		color: #000;
 	}
 
@@ -688,7 +841,7 @@
 		margin-bottom: 10px;
 		letter-spacing: 0.05em;
 	}
-	.wsb .preview-label { color: #336633; }
+	.wsb .preview-label { color: #555; }
 
 	.preview-text {
 		font-size: 12px;
@@ -698,7 +851,7 @@
 		transition: color 0.3s ease;
 	}
 	.wsb .preview-text {
-		color: #7ace7a;
+		color: #a0a0a0;
 		font-weight: 500;
 	}
 
@@ -728,7 +881,7 @@
 		margin-bottom: 14px;
 		font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
 	}
-	.wsb .section-tag { color: #336633; }
+	.wsb .section-tag { color: #555; }
 
 	.features-title {
 		font-size: clamp(1.8rem, 4vw, 2.8rem);
@@ -774,18 +927,18 @@
 		box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 	}
 	.wsb .card:hover {
-		border-color: #1a3a1a;
-		box-shadow: 0 8px 30px rgba(0, 255, 65, 0.04);
+		border-color: #2a2a2a;
+		box-shadow: 0 8px 30px rgba(255, 255, 255, 0.04);
 	}
 
 	.card-icon {
 		font-size: 20px;
-		color: #d4af37;
+		color: #f5f5f5;
 		margin-bottom: 16px;
 		opacity: 0.8;
 		transition: color 0.3s ease;
 	}
-	.wsb .card-icon { color: #00ff41; }
+	.wsb .card-icon { color: #ffffff; }
 
 	.card-title {
 		font-size: 16px;
@@ -808,20 +961,20 @@
 		margin-bottom: 14px;
 		transition: background 0.3s ease;
 	}
-	.wsb .card-divider { background: #0a2a0a; }
+	.wsb .card-divider { background: #1a1a1a; }
 
 	.card-mode {
 		font-size: 12px;
 		line-height: 1.6;
-		color: #d4af37;
+		color: #f5f5f5;
 		margin: 0;
 		font-weight: 500;
 		opacity: 0.85;
 		transition: color 0.3s ease;
 	}
 	.wsb .card-mode {
-		color: #00ff41;
-		text-shadow: 0 0 8px rgba(0, 255, 65, 0.15);
+		color: #ffffff;
+		text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
 	}
 
 	/* ── Footer ───────────────────────────────────────────── */
@@ -836,7 +989,7 @@
 		background: #1a1a1a;
 		margin-bottom: 24px;
 	}
-	.wsb .foot-line { background: #0a2a0a; }
+	.wsb .foot-line { background: #1a1a1a; }
 
 	.foot p {
 		font-size: 11px;
@@ -876,13 +1029,13 @@
 		max-width: 900px;
 	}
 	.sect-emph {
-		color: #d4af37;
+		color: #f5f5f5;
 		font-weight: 500;
 		transition: color 0.4s ease;
 	}
 	.wsb .sect-emph {
-		color: #00ff41;
-		text-shadow: 0 0 24px rgba(0, 255, 65, 0.25);
+		color: #ffffff;
+		text-shadow: 0 0 24px rgba(255, 255, 255, 0.25);
 	}
 
 	/* ── Bento: About / Mission ──────────────────────────── */
@@ -920,7 +1073,7 @@
 		inset: 0;
 		background: radial-gradient(
 			600px circle at var(--mx, 50%) var(--my, 0%),
-			rgba(212, 175, 55, 0.04),
+			rgba(224, 224, 224, 0.04),
 			transparent 40%
 		);
 		pointer-events: none;
@@ -934,17 +1087,17 @@
 		border-color: #2a2a2a;
 	}
 	.wsb .cell {
-		border-color: #0a2a0a;
+		border-color: #1a1a1a;
 	}
 	.wsb .cell::before {
 		background: radial-gradient(
 			600px circle at var(--mx, 50%) var(--my, 0%),
-			rgba(0, 255, 65, 0.06),
+			rgba(255, 255, 255, 0.06),
 			transparent 40%
 		);
 	}
 	.wsb .cell:hover {
-		border-color: #1a3a1a;
+		border-color: #2a2a2a;
 	}
 
 	.cell-about {
@@ -976,11 +1129,11 @@
 		width: 60px;
 		height: 60px;
 		border-radius: 50%;
-		background: linear-gradient(135deg, #e6c354 0%, #8b6914 100%);
+		background: linear-gradient(135deg, #d0d0d0 0%, #555 100%);
 		overflow: hidden;
 		box-shadow:
 			0 0 0 1px #1a1a1a,
-			0 10px 40px rgba(212, 175, 55, 0.18);
+			0 10px 40px rgba(224, 224, 224, 0.18);
 		flex-shrink: 0;
 		transition: all 0.4s ease;
 	}
@@ -991,10 +1144,10 @@
 		object-fit: cover;
 	}
 	.wsb .avatar {
-		background: linear-gradient(135deg, #33ff66 0%, #006619 100%);
+		background: linear-gradient(135deg, #e5e5e5 0%, #333 100%);
 		box-shadow:
-			0 0 0 1px #0a2a0a,
-			0 10px 40px rgba(0, 255, 65, 0.25);
+			0 0 0 1px #1a1a1a,
+			0 10px 40px rgba(255, 255, 255, 0.25);
 	}
 	.about-name {
 		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
@@ -1035,15 +1188,15 @@
 		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
 		font-size: 32px;
 		font-weight: 500;
-		color: #d4af37;
+		color: #f5f5f5;
 		font-variant-numeric: tabular-nums;
 		letter-spacing: -0.03em;
 		line-height: 1;
 		transition: color 0.3s ease;
 	}
 	.wsb .stat-val {
-		color: #00ff41;
-		text-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+		color: #ffffff;
+		text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 	}
 	.stat-unit {
 		font-family: 'SF Mono', monospace;
@@ -1053,7 +1206,7 @@
 		font-weight: 500;
 	}
 	.wsb .stat-unit {
-		color: #446644;
+		color: #666;
 	}
 	/* Mission cell */
 	.mission-text {
@@ -1067,14 +1220,14 @@
 		font-size: 16px;
 		font-weight: 500;
 		line-height: 1.4;
-		color: #d4af37;
+		color: #f5f5f5;
 		margin: 0;
 		letter-spacing: -0.015em;
 		transition: color 0.3s ease;
 	}
 	.wsb .mission-italic {
-		color: #00ff41;
-		text-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+		color: #ffffff;
+		text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 	}
 
 	/* Stack cell */
@@ -1095,19 +1248,19 @@
 		padding-bottom: 0;
 	}
 	.wsb .stack-row {
-		border-bottom-color: #0a1a0a;
+		border-bottom-color: #141414;
 	}
 	.stack-k {
 		font-family: 'SF Mono', monospace;
 		font-size: 9px;
 		letter-spacing: 0.18em;
-		color: #d4af37;
+		color: #f5f5f5;
 		width: 42px;
 		flex-shrink: 0;
 		transition: color 0.3s ease;
 	}
 	.wsb .stack-k {
-		color: #00ff41;
+		color: #ffffff;
 	}
 	.stack-v {
 		font-size: 12.5px;
@@ -1123,24 +1276,24 @@
 		font-size: 10px;
 		font-family: 'SF Mono', monospace;
 		letter-spacing: 0.18em;
-		color: #d4af37;
+		color: #f5f5f5;
 		margin-bottom: 16px;
 		transition: color 0.3s ease;
 	}
 	.wsb .now-led {
-		color: #00ff41;
+		color: #ffffff;
 	}
 	.now-led span {
 		width: 7px;
 		height: 7px;
 		border-radius: 50%;
-		background: #d4af37;
-		box-shadow: 0 0 10px #d4af37;
+		background: #f5f5f5;
+		box-shadow: 0 0 10px #f5f5f5;
 		animation: blink-dot 1.4s infinite;
 	}
 	.wsb .now-led span {
-		background: #00ff41;
-		box-shadow: 0 0 10px #00ff41;
+		background: #ffffff;
+		box-shadow: 0 0 10px #ffffff;
 	}
 	.now-text {
 		font-size: 13px;
@@ -1159,8 +1312,8 @@
 		color: #555;
 	}
 	.wsb .now-footer {
-		border-top-color: #0a1a0a;
-		color: #446644;
+		border-top-color: #141414;
+		color: #666;
 	}
 
 	/* ── Process / How it works ──────────────────────────── */
@@ -1191,21 +1344,21 @@
 		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 	}
 	.wsb .step {
-		border-color: #0a2a0a;
+		border-color: #1a1a1a;
 	}
 	.wsb .step:hover {
-		border-color: #1a3a1a;
-		box-shadow: 0 12px 40px rgba(0, 255, 65, 0.05);
+		border-color: #2a2a2a;
+		box-shadow: 0 12px 40px rgba(255, 255, 255, 0.05);
 	}
 	.step-line {
 		height: 1px;
-		background: linear-gradient(90deg, #d4af37 0%, transparent 100%);
+		background: linear-gradient(90deg, #f5f5f5 0%, transparent 100%);
 		margin-bottom: 26px;
 		opacity: 0.5;
 		transition: background 0.3s ease;
 	}
 	.wsb .step-line {
-		background: linear-gradient(90deg, #00ff41 0%, transparent 100%);
+		background: linear-gradient(90deg, #ffffff 0%, transparent 100%);
 	}
 	.step-title {
 		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
@@ -1236,22 +1389,22 @@
 		border: 1px solid #1a1a1a;
 		border-radius: 14px;
 		background:
-			radial-gradient(ellipse at 50% 100%, rgba(212, 175, 55, 0.09), transparent 60%),
+			radial-gradient(ellipse at 50% 100%, rgba(224, 224, 224, 0.09), transparent 60%),
 			#060606;
 		transition: border-color 0.4s ease, background 0.4s ease;
 	}
 	.wsb .final-cta {
-		border-color: #0a2a0a;
+		border-color: #1a1a1a;
 		background:
-			radial-gradient(ellipse at 50% 100%, rgba(0, 255, 65, 0.1), transparent 60%),
-			#020602;
+			radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.1), transparent 60%),
+			#060606;
 	}
 	.cta-gridlines {
 		position: absolute;
 		inset: 0;
 		background-image:
-			linear-gradient(rgba(212, 175, 55, 0.045) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(212, 175, 55, 0.045) 1px, transparent 1px);
+			linear-gradient(rgba(224, 224, 224, 0.045) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(224, 224, 224, 0.045) 1px, transparent 1px);
 		background-size: 52px 52px;
 		pointer-events: none;
 		mask-image: radial-gradient(ellipse at center, black 10%, transparent 75%);
@@ -1259,8 +1412,8 @@
 	}
 	.wsb .cta-gridlines {
 		background-image:
-			linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
+			linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
 	}
 	.cta-inner {
 		position: relative;
@@ -1279,13 +1432,13 @@
 		margin: 0 0 48px;
 	}
 	.cta-emph {
-		color: #d4af37;
+		color: #f5f5f5;
 		font-weight: 500;
 		transition: color 0.4s ease;
 	}
 	.wsb .cta-emph {
-		color: #00ff41;
-		text-shadow: 0 0 32px rgba(0, 255, 65, 0.35);
+		color: #ffffff;
+		text-shadow: 0 0 32px rgba(255, 255, 255, 0.35);
 	}
 	.cta-btn {
 		display: inline-flex;
@@ -1310,11 +1463,11 @@
 		box-shadow: 0 16px 48px rgba(255, 255, 255, 0.12);
 	}
 	.wsb .cta-btn {
-		background: #00ff41;
+		background: #ffffff;
 	}
 	.wsb .cta-btn:hover {
-		background: #33ff66;
-		box-shadow: 0 16px 48px rgba(0, 255, 65, 0.3);
+		background: #e5e5e5;
+		box-shadow: 0 16px 48px rgba(255, 255, 255, 0.3);
 	}
 	.cta-arrow {
 		transition: transform 0.22s ease;
@@ -1329,6 +1482,9 @@
 			flex-direction: column;
 			gap: 48px;
 			align-items: stretch;
+		}
+		.hero-left {
+			margin-top: 0;
 		}
 		.hero-right {
 			flex: none;
