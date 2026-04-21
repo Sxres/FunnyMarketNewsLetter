@@ -414,11 +414,11 @@
 			<div class="cell cell-about" use:reveal>
 				<div class="about-head">
 					<div class="avatar">
-						<img src="/team-avatar.svg" alt="Market Chat team avatar" />
+						<img src="/team-avatar.svg" alt="Moonstack team avatar" />
 					</div>
 					<div class="about-id">
 						<div class="about-name">{mode === 'professional' ? 'ABOUT US' : 'ABOUT THE DEGEN DESK'}</div>
-						<div class="about-role">{mode === 'professional' ? 'Market Chat Team' : 'Certified Chart Goblins'}</div>
+						<div class="about-role">{mode === 'professional' ? 'Moonstack Team' : 'Certified Chart Goblins'}</div>
 					</div>
 				</div>
 				<p class="about-bio">
@@ -523,7 +523,7 @@
 	<!-- Footer -->
 	<footer class="foot">
 		<div class="foot-line"></div>
-		<p>© {new Date().getFullYear()} Market Chat — NOT FINANCIAL ADVICE</p>
+		<p>© {new Date().getFullYear()} Moonstack. NOT FINANCIAL ADVICE</p>
 	</footer>
 </div>
 

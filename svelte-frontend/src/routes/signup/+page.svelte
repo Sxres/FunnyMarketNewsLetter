@@ -41,7 +41,7 @@
 </script>
 
 <div class="page">
-	<a href="/" class="back">← Market Chat</a>
+	<a href="/" class="back">← Moonstack</a>
 	<div class="card">
 		{#if success}
 			<h1>Check your email</h1>

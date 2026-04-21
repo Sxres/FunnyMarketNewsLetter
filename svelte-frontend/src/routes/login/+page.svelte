@@ -25,7 +25,7 @@
 </script>
 
 <div class="page">
-	<a href="/" class="back">← Market Chat</a>
+	<a href="/" class="back">← Moonstack</a>
 	<div class="card">
 		<h1>Welcome back</h1>
 		<p class="sub">Sign in to your account</p>

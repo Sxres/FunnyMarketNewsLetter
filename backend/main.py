@@ -19,7 +19,7 @@ from backend.tools import get_price
 load_dotenv()
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="FunnyMarketNews API")
+app = FastAPI(title="Moonstack API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, lambda req, exc: JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Slow down."}))
 app.add_middleware(SlowAPIMiddleware)
