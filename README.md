@@ -2,7 +2,7 @@
 
 An AI stock research assistant that pulls live prices, news, fundamentals, and insider trades on demand, then streams an analyst-style answer back to you. Pick a **professional** tone (Bloomberg-style) or a **WSB** tone (degen energy) and chat with any ticker.
 
-<img width="1904" height="926" alt="Home" src=<img width="1894" height="929" alt="Moonanimation" src="https://github.com/user-attachments/assets/7f380886-f1f2-4944-aeee-ae8bfce292b9" />
+<img width="1894" height="929" alt="Moonanimation" src="https://github.com/user-attachments/assets/7f380886-f1f2-4944-aeee-ae8bfce292b9" />
 <img width="1920" height="927" alt="Chat" src="https://github.com/user-attachments/assets/e359d7c0-75d6-4049-8994-40f886bb975b" />
 <img width="1920" height="927" alt="Tools" src="https://github.com/user-attachments/assets/b375714c-d1ab-4f8c-8e31-2bd2f88ede00" />
 
