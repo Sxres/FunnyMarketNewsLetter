@@ -1,101 +1,48 @@
 # FunnyMarketNewsLetter
 
-An AI stock research assistant that pulls live prices, news, fundamentals, and insider trades on demand, then streams an analyst-style answer back to you. Pick a **professional** tone (Bloomberg-style) or a **WSB** tone (degen energy) and chat with any ticker.
+An AI stock research assistant that pulls live prices, news, fundamentals, and insider trades on demand, then streams an analyst-style answer back to you in real time. Pick a **professional** tone (Bloomberg-style) or a **WSB** tone (degen energy) and chat with any ticker on the market.
 
 <img width="1894" height="929" alt="Moonanimation" src="https://github.com/user-attachments/assets/7f380886-f1f2-4944-aeee-ae8bfce292b9" />
 <img width="1920" height="927" alt="Chat" src="https://github.com/user-attachments/assets/e359d7c0-75d6-4049-8994-40f886bb975b" />
 <img width="1920" height="927" alt="Tools" src="https://github.com/user-attachments/assets/b375714c-d1ab-4f8c-8e31-2bd2f88ede00" />
 
-## What it does
+## How it feels
 
-Ask about any stock. Claude (`claude-sonnet-4-6`) is given four tools and always calls all of them before replying:
+Type *"what's going on with NVDA?"* and within a second you're watching live cards populate — the price ticks in, news headlines slide into a feed, fundamentals fill out a stat block, and insider trades fan out as a buy/sell breakdown. While all of that is rendering, Claude is already writing its analysis on top, tokens streaming in like a research note being typed in front of you.
+
+No watchlists. No pre-ingested tickers. No "sorry, I don't have data for that." Ask about anything that trades and it just works.
+
+## Under the hood
+
+Claude (`claude-sonnet-4-6`) is handed four tools and told to call every single one before it speaks. That means every answer is grounded in the same fresh dataset — no hallucinated prices, no stale numbers.
 
 | Tool | Source | Returns |
 |---|---|---|
 | `get_price` | yfinance → Finnhub fallback | Live price, change %, volume, 52-week high/low |
-| `get_news` | Finnhub (cached 60 min in Supabase) | Company news, 7-day window |
+| `get_news` | Finnhub (cached 60 min) | Company news, 7-day window |
 | `get_financials` | Finnhub | P/E, revenue, margins, debt, ROE, beta, short interest |
 | `get_insider_trades` | Finnhub | 90-day insider transactions, buy/sell summary |
 
-Tool calls stream to the UI as live cards (`PriceCard`, `NewsCard`, `FinancialsCard`, `InsiderCard`) while Claude is still thinking, then the synthesized answer tokens in after.
+The agent loop runs until Claude says it's done — which means it can chain tool calls, re-check a number, or pull more context mid-thought. Every tool event (`tool_start`, `tool_done`, `token`) is pushed over SSE so the UI stays in sync with what the model is actually doing.
+
+## Two personalities, one brain
+
+- **Professional** — reads like a Bloomberg terminal. Measured, numbers-first, opinionated only where the data supports it.
+- **WSB** — reads like the top-voted comment on r/wallstreetbets at 3am. Same data, different vibe.
+
+Same tools, same retrieval layer, completely different voice — swapped with one click.
 
 ## Stack
 
-- **Backend** — FastAPI, Anthropic SDK, yfinance, Finnhub, Supabase (auth + chat history + news cache), slowapi for rate limiting
-- **Frontend** — SvelteKit 2 + Svelte 5, TypeScript, Vite, `@supabase/supabase-js` for auth
-- **Infra** — Docker / Google Cloud Run
+- **Backend** — FastAPI, Anthropic SDK, yfinance, Finnhub, Supabase (auth + chat history + news cache), slowapi rate limiting
+- **Frontend** — SvelteKit 2, Svelte 5, TypeScript, Vite
+- **Auth** — Supabase JWT verified against JWKS, every chat scoped to a user
+- **Infra** — Docker, Google Cloud Run
 
-## Setup
+## Things I'm proud of
 
-Requires `uv`, Node 20+, and a Supabase project.
-
-```bash
-# 1. Install Python deps
-uv sync
-
-# 2. Copy env template and fill in keys
-cp .env.example .env
-# ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_API, FINNHUB_API_KEY
-
-# 3. Create the Supabase tables (see SQL below)
-
-# 4. Build the Svelte frontend
-cd svelte-frontend
-npm install
-npm run build    # outputs to svelte-frontend/dist/
-cd ..
-
-# 5. Run the backend (serves API + built frontend)
-uv run uvicorn backend.main:app --reload
-# → http://localhost:8000
-```
-
-For frontend-only development, run `npm run dev` inside `svelte-frontend/` and point it at the backend.
-
-### Supabase schema
-
-```sql
-CREATE TABLE news_cache (
-  ticker TEXT PRIMARY KEY,
-  articles JSONB,
-  fetched_at TIMESTAMPTZ
-);
-
-CREATE TABLE chat_messages (
-  id BIGSERIAL PRIMARY KEY,
-  session_id UUID,
-  user_id TEXT,
-  role TEXT,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX ON chat_messages (session_id, created_at);
-CREATE INDEX ON chat_messages (user_id, created_at);
-```
-
-## API
-
-All chat endpoints require a Supabase JWT Bearer token.
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/chat/stream` | JWT | SSE stream — emits `tool_start`, `tool_done`, `token`, `done`, `error` |
-| `POST` | `/api/chat` | JWT | Non-streaming fallback |
-| `GET` | `/api/history/{session_id}` | JWT | Session history |
-| `GET` | `/api/sessions` | JWT | List user sessions |
-| `DELETE` | `/api/sessions/{session_id}` | JWT | Delete a session |
-| `GET` | `/api/stocks/price/{ticker}` | Public | yfinance/Finnhub quote |
-| `GET` | `/health` | Public | Health check |
-
-Rate limit: **5 req/min** per IP on `/api/chat` and `/api/chat/stream`. Messages are capped at 2000 chars with HTML stripped and escaped.
-
-## Frontend routes
-
-`/` landing · `/login` · `/signup` · `/chat` · `/market` · `/portfolio` · `/watchlist` · `/settings`
-
-## Design notes
-
-- **No pre-ingestion pipeline.** Claude fetches everything on demand — works for any ticker with no watchlist config.
-- **Always-call-all-four.** The system prompt forces Claude to call every tool per stock question so answers are grounded in the same dataset every time.
-- **yfinance first, Finnhub fallback.** Three retries with exponential backoff before failover.
-- **Streaming first.** Tool cards render as tools complete; tokens stream via SSE.
+- **No pre-ingestion pipeline.** Claude fetches everything on demand, so the app works for any ticker the instant it's typed.
+- **Streaming-first UI.** Tool cards render the moment each tool finishes — you watch the research assemble itself, you don't stare at a spinner.
+- **Graceful degradation.** yfinance is primary; three retries with exponential backoff, then automatic Finnhub failover. The user never sees the seams.
+- **Cached where it matters.** News gets a 60-minute Supabase cache so repeat ticker questions don't hammer the API or the user's patience.
+- **Per-user memory.** Conversations persist across sessions, scoped to the authenticated user, so context carries over between visits.
