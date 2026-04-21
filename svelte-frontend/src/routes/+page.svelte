@@ -302,8 +302,8 @@
 		<div class="hero-inner">
 			<div class="hero-left">
 				<h1 class="title">
-					<span class="t1">MARKET</span>
-					<span class="t2">CHAT</span>
+					<span class="t1">MOON</span>
+					<span class="t2">STACK</span>
 				</h1>
 
 				<!-- Mode toggle card (below header) -->
@@ -543,7 +543,20 @@
 		font-style: normal;
 		font-display: swap;
 	}
-
+	@font-face {
+		font-family: 'Terminal';
+		src: url('/fonts/terminal-1-sans.otf.woff2') format('woff2');
+		font-weight: 400;
+		font-style: normal;
+		font-display: swap;
+	}
+	@font-face {
+		font-family: 'PixelArial';
+		src: url('/fonts/pixel-arial-14.otf') format('opentype');
+		font-weight: 500;
+		font-style: normal;
+		font-display: swap;
+	}
 	/* ── Base ─────────────────────────────────────────────── */
 	.page {
 		min-height: 100vh;
@@ -658,19 +671,21 @@
 		transform: translate(6%, -5%);
 	}
 	.title {
+		font-family: 'Overused Grotesk', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
 		font-size: clamp(4.5rem, 9vw, 8rem);
-		font-weight: 500;
+		font-weight: 100;
 		line-height: 0.88;
 		letter-spacing: -0.04em;
 		margin: 0 0 28px;
 	}
 	.t1 {
 		display: block;
-		color: #eaeaea;
+		color: #888;
 	}
 	.t2 {
 		display: block;
-		color: #f5f5f5;
+		color: #999;
+		margin-top: 0.12em;
 		transition: color 0.4s ease, text-shadow 0.4s ease, transform 0.4s ease;
 	}
 	.wsb .t2 {
