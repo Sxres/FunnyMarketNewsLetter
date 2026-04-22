@@ -18,6 +18,14 @@
 		font-display: swap;
 	}
 
+	@font-face {
+		font-family: 'Geist Pixel Line';
+		src: url('/fonts/GeistPixel-Line.woff2') format('woff2');
+		font-weight: 500;
+		font-style: normal;
+		font-display: swap;
+	}
+
 	:global(html, body) {
 		margin: 0;
 		padding: 0;

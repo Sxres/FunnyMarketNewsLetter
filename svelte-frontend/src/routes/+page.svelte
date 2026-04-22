@@ -56,7 +56,7 @@
 		const ramp = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 
 		const fontSize = Math.max(7, Math.min(w, h) / 90);
-		ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
+		ctx.font = `${fontSize}px "Geist Pixel Line", "JetBrains Mono", monospace`;
 		const metrics = ctx.measureText('@');
 		const charW = metrics.width;
 		const charH = fontSize * 1.15;
@@ -685,10 +685,11 @@
 		height: clamp(560px, 100vh, 1080px);
 		image-rendering: pixelated;
 		transform: translate(6%, -5%);
+		opacity: 1.5;
 	}
 	.title {
-		font-family: 'Overused Grotesk', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
-		font-size: clamp(5rem, 10vw, 9rem);
+		font-family: 'Geist Pixel Line', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+		font-size: clamp(4rem, 6vw, 9rem);
 		font-weight: 300;
 		line-height: 0.88;
 		letter-spacing: -0.045em;
@@ -696,23 +697,15 @@
 	}
 	.t1 {
 		display: block;
-		color: #ffffff;
-		text-shadow:
-			0 0 30px rgba(255, 255, 255, 0.25),
-			0 0 80px rgba(255, 255, 255, 0.08);
+		color: #b8b8b8;
 	}
 	.t2 {
 		display: block;
 		margin-top: 0.12em;
-		background: linear-gradient(180deg, #ffffff 0%, #ffffff 40%, #6a6a6a 100%);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
-		color: transparent;
-		transition: filter 0.4s ease, transform 0.4s ease;
+		color: #b8b8b8;
+		transition: transform 0.4s ease;
 	}
 	.wsb .t2 {
-		filter: drop-shadow(0 0 32px rgba(255, 255, 255, 0.4));
 		transform: skewX(-3deg);
 	}
 
