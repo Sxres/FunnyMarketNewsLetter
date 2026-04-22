@@ -5,8 +5,6 @@
 
 	let mode = $state<'professional' | 'wsb'>('professional');
 	let loaded = $state(false);
-	let tickerOffset = $state(0);
-	let tickerFrame: number;
 
 	// ── ASCII moon ────────────────────────────────────────
 	let moonCanvas: HTMLCanvasElement | null = null;
@@ -138,7 +136,9 @@
 	const tickerItems = [
 		'AAPL +2.4%', 'NVDA +5.1%', 'TSLA -1.8%', 'MSFT +0.9%', 'AMZN +3.2%',
 		'GME +42.0%', 'META +1.1%', 'GOOG -0.3%', 'SPY +0.7%', 'AMD +4.6%',
-		'PLTR +8.2%', 'COIN -2.1%', 'SOFI +3.7%', 'RIVN -4.5%', 'DIS +1.3%'
+		'PLTR +8.2%', 'COIN -2.1%', 'SOFI +3.7%', 'RIVN -4.5%', 'DIS +1.3%',
+		'NFLX +1.9%', 'BA -2.7%', 'UBER +3.4%', 'SHOP +5.8%', 'SNAP -1.2%',
+		'AVGO +2.8%', 'ORCL +0.6%', 'CRM +1.7%', 'INTC -3.1%', 'QCOM +2.2%',
 	];
 
 	const features = [
@@ -250,18 +250,11 @@
 		};
 	}
 
-	function animateTicker() {
-		tickerOffset -= 0.5;
-		if (tickerOffset < -2400) tickerOffset = 0;
-		tickerFrame = requestAnimationFrame(animateTicker);
-	}
-
 	onMount(async () => {
 		const { data: { session } } = await supabase.auth.getSession();
 		if (session) { goto('/chat'); return; }
 
 		requestAnimationFrame(() => { loaded = true; });
-		animateTicker();
 
 		initCraters();
 		document.fonts.ready.then(() => {
@@ -270,7 +263,6 @@
 	});
 
 	onDestroy(() => {
-		if (tickerFrame) cancelAnimationFrame(tickerFrame);
 		if (moonAnimId) cancelAnimationFrame(moonAnimId);
 	});
 </script>
@@ -285,18 +277,23 @@
 
 <div class="page" class:wsb={mode === 'wsb'} class:loaded>
 
-	<!-- Scanlines overlay -->
-	<div class="scanlines" aria-hidden="true"></div>
-
 	<!-- Ticker tape -->
 	<div class="ticker" aria-hidden="true">
-		<div class="ticker-track" style="transform: translateX({tickerOffset}px)">
-			{#each [...tickerItems, ...tickerItems, ...tickerItems] as item}
-				<span class="ticker-item" class:up={item.includes('+')} class:down={item.includes('-')}>{item}</span>
-			{/each}
+		<div class="ticker-track">
+			<div class="ticker-group">
+				{#each tickerItems as item}
+					<span class="ticker-item" class:up={item.includes('+')} class:down={item.includes('-')}>{item}</span>
+				{/each}
+			</div>
+			<div class="ticker-group" aria-hidden="true">
+				{#each tickerItems as item}
+					<span class="ticker-item" class:up={item.includes('+')} class:down={item.includes('-')}>{item}</span>
+				{/each}
+			</div>
 		</div>
 	</div>
 
+	<main class="scroll-region">
 	<!-- Hero -->
 	<section class="hero">
 		<div class="hero-inner">
@@ -358,7 +355,7 @@
 				<div class="actions">
 					<a href="/signup" class="btn-main">
 						{mode === 'professional' ? 'Get Started' : 'APE IN'}
-						<span class="btn-arrow">→</span>
+						
 					</a>
 					<a href="/login" class="btn-ghost">Sign In</a>
 				</div>
@@ -514,7 +511,6 @@
 				</h2>
 				<a href="/signup" class="cta-btn">
 					ENTER THE TERMINAL
-					<span class="cta-arrow">→</span>
 				</a>
 			</div>
 		</div>
@@ -525,6 +521,7 @@
 		<div class="foot-line"></div>
 		<p>© {new Date().getFullYear()} Moonstack. NOT FINANCIAL ADVICE</p>
 	</footer>
+	</main>
 </div>
 
 <style>
@@ -559,26 +556,26 @@
 	}
 	/* ── Base ─────────────────────────────────────────────── */
 	.page {
-		min-height: 100vh;
+		height: 100vh;
+		display: flex;
+		flex-direction: column;
 		background: #000;
 		color: #eaeaea;
 		position: relative;
-		overflow-x: hidden;
+		overflow: hidden;
 	}
 
-	/* ── Scanlines ────────────────────────────────────────── */
-	.scanlines {
-		position: fixed;
-		inset: 0;
-		pointer-events: none;
-		z-index: 50;
-		background: repeating-linear-gradient(
-			0deg,
-			transparent,
-			transparent 2px,
-			rgba(0, 0, 0, 0.03) 2px,
-			rgba(0, 0, 0, 0.03) 4px
-		);
+	.scroll-region {
+		flex: 1;
+		overflow-y: auto;
+		overflow-x: hidden;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+	.scroll-region::-webkit-scrollbar {
+		display: none;
+		width: 0;
+		height: 0;
 	}
 
 	/* ── Ticker ───────────────────────────────────────────── */
@@ -598,7 +595,23 @@
 		display: flex;
 		gap: 40px;
 		white-space: nowrap;
+		width: max-content;
 		will-change: transform;
+		animation: ticker-scroll 60s linear infinite;
+		backface-visibility: hidden;
+		-webkit-backface-visibility: hidden;
+		transform-style: preserve-3d;
+	}
+	.ticker-group {
+		display: flex;
+		gap: 40px;
+		flex-shrink: 0;
+		backface-visibility: hidden;
+		-webkit-backface-visibility: hidden;
+	}
+	@keyframes ticker-scroll {
+		from { transform: translate3d(0, 0, 0); }
+		to { transform: translate3d(calc(-50% - 20px), 0, 0); }
 	}
 
 	.ticker-item {
@@ -607,14 +620,17 @@
 		font-weight: 500;
 		color: #555;
 		font-variant-numeric: tabular-nums;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeSpeed;
 	}
-	.ticker-item.up { color: #22c55e; }
-	.ticker-item.down { color: #ef4444; }
+	.ticker-item.up { color: #fff; }
+	.ticker-item.down { color: #fff; }
 
 	.wsb .ticker { border-bottom-color: #1a1a1a; background: #050505; }
 	.wsb .ticker-item { color: #555; }
-	.wsb .ticker-item.up { color: #22c55e; }
-	.wsb .ticker-item.down { color: #ff3333; }
+	.wsb .ticker-item.up { color: #fff; }
+	.wsb .ticker-item.down { color: #fff; }
 
 	/* ── Hero ─────────────────────────────────────────────── */
 	.hero {
@@ -672,25 +688,31 @@
 	}
 	.title {
 		font-family: 'Overused Grotesk', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
-		font-size: clamp(4.5rem, 9vw, 8rem);
-		font-weight: 100;
+		font-size: clamp(5rem, 10vw, 9rem);
+		font-weight: 300;
 		line-height: 0.88;
-		letter-spacing: -0.04em;
+		letter-spacing: -0.045em;
 		margin: 0 0 28px;
 	}
 	.t1 {
 		display: block;
-		color: #888;
+		color: #ffffff;
+		text-shadow:
+			0 0 30px rgba(255, 255, 255, 0.25),
+			0 0 80px rgba(255, 255, 255, 0.08);
 	}
 	.t2 {
 		display: block;
-		color: #999;
 		margin-top: 0.12em;
-		transition: color 0.4s ease, text-shadow 0.4s ease, transform 0.4s ease;
+		background: linear-gradient(180deg, #ffffff 0%, #ffffff 40%, #6a6a6a 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+		-webkit-text-fill-color: transparent;
+		color: transparent;
+		transition: filter 0.4s ease, transform 0.4s ease;
 	}
 	.wsb .t2 {
-		color: #ffffff;
-		text-shadow: 0 0 40px rgba(255, 255, 255, 0.4);
+		filter: drop-shadow(0 0 32px rgba(255, 255, 255, 0.4));
 		transform: skewX(-3deg);
 	}
 
@@ -727,18 +749,11 @@
 		font-weight: 500;
 		letter-spacing: 0.03em;
 		border-radius: 6px;
-		transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+		transition: background 0.2s ease;
 	}
 	.btn-main:hover {
 		background: #fff;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1);
 	}
-	.btn-main:active { transform: translateY(0); }
-	.btn-arrow {
-		transition: transform 0.2s ease;
-	}
-	.btn-main:hover .btn-arrow { transform: translateX(3px); }
 
 	.wsb .btn-main {
 		background: #ffffff;
@@ -747,7 +762,6 @@
 	}
 	.wsb .btn-main:hover {
 		background: #e5e5e5;
-		box-shadow: 0 4px 30px rgba(255, 255, 255, 0.25);
 	}
 
 	.btn-ghost {
@@ -1464,31 +1478,19 @@
 		color: #000;
 		text-decoration: none;
 		font-size: 13px;
-		font-weight: 600;
+		font-weight: 400;
 		letter-spacing: 0.2em;
 		border-radius: 8px;
-		transition:
-			background 0.2s ease,
-			transform 0.18s ease,
-			box-shadow 0.3s ease;
+		transition: background 0.2s ease;
 	}
 	.cta-btn:hover {
 		background: #fff;
-		transform: translateY(-2px);
-		box-shadow: 0 16px 48px rgba(255, 255, 255, 0.12);
 	}
 	.wsb .cta-btn {
 		background: #ffffff;
 	}
 	.wsb .cta-btn:hover {
 		background: #e5e5e5;
-		box-shadow: 0 16px 48px rgba(255, 255, 255, 0.3);
-	}
-	.cta-arrow {
-		transition: transform 0.22s ease;
-	}
-	.cta-btn:hover .cta-arrow {
-		transform: translateX(6px);
 	}
 
 	/* ── Responsive ───────────────────────────────────────── */

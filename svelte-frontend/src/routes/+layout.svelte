@@ -35,18 +35,29 @@
 		font-family: inherit;
 		color: inherit;
 	}
+	:global(html) {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+	}
 	:global(::-webkit-scrollbar) {
-		width: 8px;
-		height: 8px;
+		width: 10px;
+		height: 10px;
 	}
 	:global(::-webkit-scrollbar-track) {
 		background: transparent;
 	}
 	:global(::-webkit-scrollbar-thumb) {
-		background: #222;
-		border-radius: 4px;
+		background: rgba(255, 255, 255, 0.12);
+		border-radius: 10px;
+		border: 2px solid transparent;
+		background-clip: content-box;
+		transition: background 0.2s ease;
 	}
 	:global(::-webkit-scrollbar-thumb:hover) {
-		background: #333;
+		background: rgba(255, 255, 255, 0.28);
+		background-clip: content-box;
+	}
+	:global(::-webkit-scrollbar-corner) {
+		background: transparent;
 	}
 </style>
