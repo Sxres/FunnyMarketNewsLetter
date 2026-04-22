@@ -46,7 +46,14 @@
 </script>
 
 <div class="app">
-	<Sidebar activeTab="portfolio" onNavigate={navigateTab} />
+	<Sidebar
+		activeTab="portfolio"
+		onNavigate={navigateTab}
+		onSignOut={async () => {
+			await supabase.auth.signOut();
+			goto('/');
+		}}
+	/>
 	<main class="main">
 		<div class="terminal">
 			<div class="header">
