@@ -6,12 +6,12 @@
 	let mode = $state<'professional' | 'wsb'>('professional');
 	let loaded = $state(false);
 
-	// ── ASCII moon ────────────────────────────────────────
+// ── ASCII moon ────────────────────────────────────────
 	let moonCanvas: HTMLCanvasElement | null = null;
 	let moonRotation = 0;
 	let moonAnimId: number | null = null;
 	let lastMoonFrame = 0;
-	const MOON_FRAME_MS = 1000 / 17;
+	const MOON_FRAME_MS = 1000 / 18;
 	const craters: Array<{ x: number; y: number; z: number; r: number; depth: number }> = [];
 
 	function initCraters() {
@@ -56,7 +56,7 @@
 		const ramp = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 
 		const fontSize = Math.max(7, Math.min(w, h) / 90);
-		ctx.font = `${fontSize}px "Geist Pixel Line", "JetBrains Mono", monospace`;
+		ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
 		const metrics = ctx.measureText('@');
 		const charW = metrics.width;
 		const charH = fontSize * 1.15;
@@ -268,8 +268,9 @@
 </script>
 
 <svelte:head>
-	<link rel="preload" href="/fonts/OverusedGrotesk-Book.otf" as="font" type="font/otf" crossorigin="anonymous" />
-	<link rel="preload" href="/fonts/OverusedGrotesk-Medium.otf" as="font" type="font/otf" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/Geist-Regular.otf" as="font" type="font/otf" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/Geist-Light.otf" as="font" type="font/otf" crossorigin="anonymous" />
+	<link rel="preload" href="/fonts/Geist-Thin.otf" as="font" type="font/otf" crossorigin="anonymous" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -299,8 +300,8 @@
 		<div class="hero-inner">
 			<div class="hero-left">
 				<h1 class="title">
-					<span class="t1">MOON</span>
-					<span class="t2">STACK</span>
+					<span class="t1">dimas</span>
+					
 				</h1>
 
 				<!-- Mode toggle card (below header) -->
@@ -334,7 +335,7 @@
 						<div class="preview-label">sample output</div>
 						<p class="preview-text">
 							{#if mode === 'professional'}
-								NVDA trades at 38.2x forward P/E with 94% gross margins on datacenter. Consensus PT $152 implies 18% upside. Insider selling remains minimal.
+								NVDA trades at 38.2x forward P/E with 94% gross margins on datacenters. Consensus PT $152 implies 18% upside. Insider selling remains minimal.
 							{:else}
 								NVDA IS LITERALLY PRINTING MONEY. 94% MARGINS?? JENSEN IS A GOD. BEARS ARE FINANCIALLY RUINED. $200 EOW IS NOT A MEME.
 							{/if}
@@ -525,32 +526,39 @@
 </div>
 
 <style>
-	/* ── Fonts ────────────────────────────────────────────── */
+	/* Fonts  */
 	@font-face {
-		font-family: 'Overused Grotesk';
-		src: url('/fonts/OverusedGrotesk-Book.otf') format('opentype');
+		font-family: 'Geist-Regular';
+		src: url('/fonts/Geist-Regular.otf') format('opentype');
 		font-weight: 400;
 		font-style: normal;
 		font-display: swap;
 	}
 	@font-face {
-		font-family: 'Overused Grotesk';
-		src: url('/fonts/OverusedGrotesk-Medium.otf') format('opentype');
-		font-weight: 500;
-		font-style: normal;
-		font-display: swap;
-	}
-	@font-face {
-		font-family: 'Terminal';
-		src: url('/fonts/terminal-1-sans.otf.woff2') format('woff2');
+		font-family: 'Geist-Light';
+		src: url('/fonts/Geist-Light.otf') format('opentype');
 		font-weight: 400;
 		font-style: normal;
 		font-display: swap;
 	}
 	@font-face {
-		font-family: 'PixelArial';
-		src: url('/fonts/pixel-arial-14.otf') format('opentype');
-		font-weight: 500;
+		font-family: 'Geist-Thin';
+		src: url('/fonts/Geist-Thin.otf') format('opentype');
+		font-weight: 400;
+		font-style: normal;
+		font-display: swap;
+	}
+	@font-face {
+		font-family: 'Geist-Pixel-Square';
+		src: url('/fonts/GeistPixel-Square.otf') format('opentype');
+		font-weight: 400;
+		font-style: normal;
+		font-display: swap;
+	}
+	@font-face {
+		font-family: 'Geist-Pixel-Line';
+		src: url('/fonts/GeistPixel-Line.otf') format('opentype');
+		font-weight: 400;
 		font-style: normal;
 		font-display: swap;
 	}
@@ -563,6 +571,9 @@
 		color: #eaeaea;
 		position: relative;
 		overflow: hidden;
+		font-family: 'Geist-Regular', 'Helvetica Neue', sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
 
 	.scroll-region {
@@ -615,9 +626,10 @@
 	}
 
 	.ticker-item {
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 11px;
 		letter-spacing: 0.12em;
-		font-weight: 500;
+		font-weight: 400;
 		color: #555;
 		font-variant-numeric: tabular-nums;
 		-webkit-font-smoothing: antialiased;
@@ -638,6 +650,7 @@
 		display: flex;
 		align-items: center;
 		padding: 80px 6% 60px;
+		overflow: visible;
 	}
 
 	.hero-inner {
@@ -647,6 +660,7 @@
 		width: 100%;
 		max-width: 1240px;
 		margin: 0 auto;
+		overflow: visible;
 	}
 
 	.hero-left {
@@ -670,6 +684,7 @@
 		align-items: center;
 		justify-content: flex-end;
 		margin-right: -10%;
+		overflow: visible;
 		opacity: 0;
 		transform: translateY(24px);
 		transition: opacity 0.7s ease 0.35s, transform 0.7s ease 0.35s;
@@ -685,28 +700,28 @@
 		height: clamp(560px, 100vh, 1080px);
 		image-rendering: pixelated;
 		transform: translate(6%, -5%);
+		transform-origin: center center;
 		opacity: 1.5;
 	}
 	.title {
-		font-family: 'Geist Pixel Line', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+		font-family: 'Geist-Thin';
 		font-size: clamp(4rem, 6vw, 9rem);
 		font-weight: 300;
 		line-height: 0.88;
 		letter-spacing: -0.045em;
 		margin: 0 0 28px;
+		background: linear-gradient(180deg, #e8e6e4 0%, #b5b3b0 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+		-webkit-text-fill-color: transparent;
+		color: transparent;
 	}
 	.t1 {
 		display: block;
-		color: #b8b8b8;
+		transition: text-shadow 0.5s ease;
 	}
-	.t2 {
-		display: block;
-		margin-top: 0.12em;
-		color: #b8b8b8;
-		transition: transform 0.4s ease;
-	}
-	.wsb .t2 {
-		transform: skewX(-3deg);
+	.wsb .t1 {
+		text-shadow: 0 0 32px rgba(255, 255, 255, 0.28);
 	}
 
 	.subtitle {
@@ -798,10 +813,12 @@
 	}
 
 	.mode-card-label {
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 10px;
 		letter-spacing: 0.2em;
 		color: #444;
 		margin-bottom: 14px;
+		text-transform: uppercase;
 	}
 
 	.mode-toggle {
@@ -858,12 +875,11 @@
 	}
 	.preview-label {
 		font-size: 10px;
-		font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+		font-family: 'Geist-Light';
 		color: #888;
 		margin-bottom: 10px;
 		letter-spacing: 0.05em;
 	}
-	.wsb .preview-label { color: #555; }
 
 	.preview-text {
 		font-size: 12px;
@@ -871,10 +887,6 @@
 		color: #888;
 		margin: 0;
 		transition: color 0.3s ease;
-	}
-	.wsb .preview-text {
-		color: #a0a0a0;
-		font-weight: 500;
 	}
 
 	/* ── Features ─────────────────────────────────────────── */
@@ -896,18 +908,20 @@
 	}
 
 	.section-tag {
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 11px;
 		letter-spacing: 0.2em;
 		color: #444;
 		display: block;
 		margin-bottom: 14px;
-		font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+		text-transform: uppercase;
 	}
 	.wsb .section-tag { color: #555; }
 
 	.features-title {
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: clamp(1.8rem, 4vw, 2.8rem);
-		font-weight: 500;
+		font-weight: 400;
 		letter-spacing: -0.02em;
 		color: #eaeaea;
 		margin: 0;
@@ -963,8 +977,9 @@
 	.wsb .card-icon { color: #ffffff; }
 
 	.card-title {
+		font-family: 'Geist-Regular', 'Helvetica Neue', sans-serif;
 		font-size: 16px;
-		font-weight: 500;
+		font-weight: 400;
 		letter-spacing: -0.01em;
 		margin: 0 0 8px;
 		color: #eaeaea;
@@ -1014,6 +1029,7 @@
 	.wsb .foot-line { background: #1a1a1a; }
 
 	.foot p {
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 11px;
 		letter-spacing: 0.12em;
 		color: #333;
@@ -1041,9 +1057,9 @@
 		margin-bottom: 56px;
 	}
 	.sect-title {
-		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: clamp(2.2rem, 5.4vw, 4.2rem);
-		font-weight: 500;
+		font-weight: 400;
 		letter-spacing: -0.03em;
 		color: #eaeaea;
 		line-height: 1.02;
@@ -1172,19 +1188,19 @@
 			0 10px 40px rgba(255, 255, 255, 0.25);
 	}
 	.about-name {
-		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
+		font-family: 'Geist-Regular', 'Helvetica Neue', sans-serif;
 		font-size: 24px;
-		font-weight: 500;
+		font-weight: 400;
 		letter-spacing: 0.02em;
 		color: #eaeaea;
 		margin-bottom: 4px;
 		line-height: 1;
 	}
 	.about-role {
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 11.5px;
 		color: #666;
 		letter-spacing: 0.08em;
-		font-family: 'SF Mono', monospace;
 		text-transform: uppercase;
 	}
 	.about-bio {
@@ -1207,9 +1223,9 @@
 		gap: 6px;
 	}
 	.stat-val {
-		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 32px;
-		font-weight: 500;
+		font-weight: 400;
 		color: #f5f5f5;
 		font-variant-numeric: tabular-nums;
 		letter-spacing: -0.03em;
@@ -1221,11 +1237,11 @@
 		text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 	}
 	.stat-unit {
-		font-family: 'SF Mono', monospace;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 13px;
 		color: #555;
 		margin-left: 2px;
-		font-weight: 500;
+		font-weight: 400;
 	}
 	.wsb .stat-unit {
 		color: #666;
@@ -1238,9 +1254,9 @@
 		margin: 0 0 14px;
 	}
 	.mission-italic {
-		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
+		font-family: 'Geist-Regular', 'Helvetica Neue', sans-serif;
 		font-size: 16px;
-		font-weight: 500;
+		font-weight: 400;
 		line-height: 1.4;
 		color: #f5f5f5;
 		margin: 0;
@@ -1273,7 +1289,7 @@
 		border-bottom-color: #141414;
 	}
 	.stack-k {
-		font-family: 'SF Mono', monospace;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 9px;
 		letter-spacing: 0.18em;
 		color: #f5f5f5;
@@ -1296,7 +1312,7 @@
 		align-items: center;
 		gap: 10px;
 		font-size: 10px;
-		font-family: 'SF Mono', monospace;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		letter-spacing: 0.18em;
 		color: #f5f5f5;
 		margin-bottom: 16px;
@@ -1328,7 +1344,7 @@
 		margin-top: 16px;
 		padding-top: 14px;
 		border-top: 1px dashed #141414;
-		font-family: 'SF Mono', monospace;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: 9px;
 		letter-spacing: 0.14em;
 		color: #555;
@@ -1383,9 +1399,9 @@
 		background: linear-gradient(90deg, #ffffff 0%, transparent 100%);
 	}
 	.step-title {
-		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
+		font-family: 'Geist-Regular', 'Helvetica Neue', sans-serif;
 		font-size: 22px;
-		font-weight: 500;
+		font-weight: 400;
 		letter-spacing: -0.02em;
 		color: #eaeaea;
 		margin: 0 0 14px;
@@ -1445,9 +1461,9 @@
 		text-align: center;
 	}
 	.cta-title {
-		font-family: 'Overused Grotesk', 'Helvetica Neue', sans-serif;
+		font-family: 'Geist-Light', 'Helvetica Neue', sans-serif;
 		font-size: clamp(2.4rem, 6.2vw, 4.8rem);
-		font-weight: 500;
+		font-weight: 400;
 		letter-spacing: -0.04em;
 		line-height: 1;
 		color: #eaeaea;

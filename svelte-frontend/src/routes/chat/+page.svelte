@@ -405,8 +405,9 @@
 			{:else if messages.length === 0}
 				<div class="welcome">
 					<pre class="pixel-face" aria-label="smiley pixel face">
-     |  |     
- \____/ 
+     |  | 
+		                          >					
+     \____/ 
 </pre>
 					<p>Ask about any stock - price, news, sentiment.</p>
 				</div>
