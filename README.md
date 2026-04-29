@@ -1,4 +1,4 @@
-# Moonstack
+# dimas
 
 An AI stock research assistant that pulls live prices, news, fundamentals, and insider trades on demand, then streams an analyst-style answer back to you in real time. Pick a **professional** tone (Bloomberg-style) or a **WSB** tone (degen energy) and chat with any ticker on the market.
 
